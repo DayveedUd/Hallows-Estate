@@ -3,6 +3,7 @@
 // ================================================
 
 const User = require('../models/Admin'); // Adjust path to your User model
+const Resident = require('../models/Resident');
 
 exports.login = async (req, res) => {
     // Admin login logic

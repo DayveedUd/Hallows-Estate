@@ -3,6 +3,7 @@
 // ================================================
 
 require('dotenv').config();
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -36,8 +37,17 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Resolve public path using process.cwd() for Vercel serverless compatibility
-const publicPath = path.join(process.cwd(), 'public');
+// Resolve public directory dynamically across Vercel environments
+const getPublicPath = () => {
+    const cwdPath = path.join(process.cwd(), 'public');
+    const dirPath = path.join(__dirname, 'public');
+    
+    if (fs.existsSync(cwdPath)) return cwdPath;
+    if (fs.existsSync(dirPath)) return dirPath;
+    return cwdPath; // Fallback
+};
+
+const publicPath = getPublicPath();
 app.use(express.static(publicPath));
 
 // MongoDB connection
@@ -78,20 +88,19 @@ app.get('/', (req, res) => {
     const indexPath = path.join(publicPath, 'index.html');
     const loginPath = path.join(publicPath, 'resident-login.html');
 
-    // Tries index.html first, falls back to resident-login.html if index.html is missing
-    res.sendFile(indexPath, (err) => {
-        if (err) {
-            res.sendFile(loginPath, (err2) => {
-                if (err2) {
-                    res.status(404).json({
-                        success: false,
-                        message: 'Landing page (index.html) and fallback pages not found in /public directory',
-                        timestamp: new Date().toISOString()
-                    });
-                }
-            });
-        }
-    });
+    if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+    } else if (fs.existsSync(loginPath)) {
+        return res.sendFile(loginPath);
+    } else {
+        return res.status(404).json({
+            success: false,
+            message: 'Landing page (index.html) and fallback pages not found in runtime directory',
+            resolvedPath: publicPath,
+            cwd: process.cwd(),
+            dirname: __dirname
+        });
+    }
 });
 
 // Health check endpoint
