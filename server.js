@@ -65,23 +65,13 @@ app.get('/admin-portal.html', (req, res) => {
     res.sendFile(path.join(publicPath, 'admin-portal.html'));
 });
 
-// Root Route - Serves Landing Page (index.html) first
+// Root Route - Serves Landing Page (index.html)
 app.get('/', (req, res) => {
-    const indexPath = path.join(publicPath, 'index.html');
-    const loginPath = path.join(publicPath, 'resident-login.html');
-
-    // Tries to serve index.html first, then falls back to resident-login.html
+    const indexPath = path.join(process.cwd(), 'public', 'index.html');
     res.sendFile(indexPath, (err) => {
         if (err) {
-            res.sendFile(loginPath, (err2) => {
-                if (err2) {
-                    res.status(200).json({
-                        success: true,
-                        message: 'Hallows Estate API is running successfully!',
-                        timestamp: new Date().toISOString()
-                    });
-                }
-            });
+            console.error('Error serving index.html:', err);
+            res.status(404).send('Landing page (index.html) not found in /public directory');
         }
     });
 });

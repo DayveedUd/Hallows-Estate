@@ -1,33 +1,22 @@
 {
   "version": 2,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/(.*)",
-      "destination": "/server.js"
+      "src": "server.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["public/**"]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "server.js"
     },
     {
-      "source": "/",
-      "destination": "/public/index.html"
-    },
-    {
-      "source": "/index.html",
-      "destination": "/public/index.html"
-    },
-    {
-      "source": "/resident-login.html",
-      "destination": "/public/resident-login.html"
-    },
-    {
-      "source": "/resident-portal.html",
-      "destination": "/public/resident-portal.html"
-    },
-    {
-      "source": "/admin-portal.html",
-      "destination": "/public/admin-portal.html"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/public/$1"
+      "src": "/(.*)",
+      "dest": "/public/$1"
     }
   ]
 }
