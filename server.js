@@ -1,5 +1,5 @@
 // ================================================
-// HALLOWS ESTATE - Main Server
+// HALLOWS ESTATE - Serverless Express Server
 // ================================================
 
 require('dotenv').config();
@@ -12,18 +12,13 @@ const mongoose = require('mongoose');
 const adminRoutes = require('./Backend/routes/adminRoutes');
 const residentRoutes = require('./Backend/routes/residentRoutes');
 
-// Initialize Express app
 const app = express();
 
 // Middleware
-app.use(helmet({
-    contentSecurityPolicy: false // Allows rendering static assets without strict CSP blocking
-}));
+app.use(helmet({ contentSecurityPolicy: false }));
 
-// CORS Configuration
 app.use(cors({
     origin: (origin, callback) => {
-        // Allows direct browser loads, local dev, or production deployments
         if (!origin || process.env.NODE_ENV === 'production' || origin.includes('localhost') || origin.includes('127.0.0.1')) {
             return callback(null, true);
         }
@@ -35,28 +30,41 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// MongoDB connection
-const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
+// Serverless Database Connection Caching
+let isConnected = false;
 
-if (mongoURI) {
-    mongoose.connect(mongoURI)
-    .then(() => {
+const connectDB = async () => {
+    if (isConnected) return;
+    
+    const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
+    if (!mongoURI) {
+        console.warn("⚠️ MONGO_URI environment variable is missing.");
+        return;
+    }
+
+    try {
+        const db = await mongoose.connect(mongoURI, {
+            serverSelectionTimeoutMS: 5000
+        });
+        isConnected = db.connections[0].readyState;
         console.log("MongoDB connected successfully");
-    })
-    .catch((error) => {
-        console.log("MongoDB connection failed:");
-        console.log(error);
-    });
-} else {
-    console.warn("⚠️ MONGO_URI is not defined in environment variables.");
-}
+    } catch (error) {
+        console.error("MongoDB connection error:", error.message);
+    }
+};
+
+// Ensure database connection on incoming API requests
+app.use(async (req, res, next) => {
+    await connectDB();
+    next();
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'Server is running',
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development'
+        dbConnected: Boolean(isConnected),
+        timestamp: new Date().toISOString()
     });
 });
 
@@ -64,7 +72,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
 
-// 404 handler for unmatched API routes
+// Unmatched API endpoint handler
 app.use('/api/*', (req, res) => {
     res.status(404).json({
         success: false,
@@ -75,29 +83,18 @@ app.use('/api/*', (req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-    console.error('Error:', err);
-    
+    console.error('Runtime Error:', err);
     res.status(err.status || 500).json({
         success: false,
-        message: err.message || 'Internal server error',
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+        message: err.message || 'Internal server error'
     });
 });
 
-// Start server locally (Vercel handles serverless executions in production)
-const PORT = process.env.PORT || 5000;
+// Start local listener during development
 if (process.env.NODE_ENV !== 'production') {
-    const server = app.listen(PORT, () => {
-        console.log(`🚀 Hallows Estate Server running on port ${PORT}`);
-    });
-
-    server.on('error', (error) => {
-        if (error.code === 'EADDRINUSE') {
-            console.error(`❌ Port ${PORT} is already in use`);
-        } else {
-            console.error('Server error:', error);
-        }
-        process.exit(1);
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
     });
 }
 
