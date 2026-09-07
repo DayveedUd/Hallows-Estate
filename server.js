@@ -18,11 +18,28 @@ const residentRoutes = require('./Backend/routes/residentRoutes');
 const app = express();
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false // Prevents CSP from blocking inline styles or assets when hosting HTML statically
+}));
+
+// Dynamic CORS Configuration (Allows localhost during development and deployed origins in production)
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000'
+];
+
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:5000'],
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, or direct browser loads)
+        if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'production') {
+            return callback(null, true);
+        }
+        return callback(new Error('CORS policy violation'), false);
+    },
     credentials: true
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -30,13 +47,29 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)
 .then(() => {
     console.log("MongoDB connected successfully");
 })
 .catch((error) => {
     console.log("MongoDB connection failed:");
     console.log(error);
+});
+
+// Root route handler (Prevents 404 on base URL launch)
+app.get('/', (req, res) => {
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    
+    // Check if an index.html exists in public directory; send file if present, else JSON health status
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            res.status(200).json({
+                success: true,
+                message: 'Hallows Estate API is running successfully!',
+                timestamp: new Date().toISOString()
+            });
+        }
+    });
 });
 
 // Health check endpoint
@@ -77,7 +110,7 @@ const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
     console.log(`🚀 Hallows Estate Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Database: ${process.env.MONGODB_URI || 'Local MongoDB'}`);
+    console.log(`Database: ${process.env.MONGO_URI || process.env.MONGODB_URI || 'Local MongoDB'}`);
 });
 
 // Handle server errors
