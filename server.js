@@ -65,15 +65,15 @@ app.get('/admin-portal.html', (req, res) => {
     res.sendFile(path.join(publicPath, 'admin-portal.html'));
 });
 
-// Root Route Fallback
+// Root Route - Serves Landing Page (index.html) first
 app.get('/', (req, res) => {
-    const loginPath = path.join(publicPath, 'resident-login.html');
     const indexPath = path.join(publicPath, 'index.html');
+    const loginPath = path.join(publicPath, 'resident-login.html');
 
-    // Tries to serve resident-login.html first, then index.html, then API fallback message
-    res.sendFile(loginPath, (err) => {
+    // Tries to serve index.html first, then falls back to resident-login.html
+    res.sendFile(indexPath, (err) => {
         if (err) {
-            res.sendFile(indexPath, (err2) => {
+            res.sendFile(loginPath, (err2) => {
                 if (err2) {
                     res.status(200).json({
                         success: true,
