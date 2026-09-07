@@ -3,8 +3,6 @@
 // ================================================
 
 require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -37,19 +35,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Resolve public directory dynamically across Vercel environments
-const getPublicPath = () => {
-    const cwdPath = path.join(process.cwd(), 'public');
-    const dirPath = path.join(__dirname, 'public');
-    
-    if (fs.existsSync(cwdPath)) return cwdPath;
-    if (fs.existsSync(dirPath)) return dirPath;
-    return cwdPath; // Fallback
-};
-
-const publicPath = getPublicPath();
-app.use(express.static(publicPath));
-
 // MongoDB connection
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
@@ -66,43 +51,6 @@ if (mongoURI) {
     console.warn("⚠️ MONGO_URI is not defined in environment variables.");
 }
 
-// Explicit Page Routes for HTML files
-app.get('/index.html', (req, res) => {
-    res.sendFile(path.join(publicPath, 'index.html'));
-});
-
-app.get('/resident-login.html', (req, res) => {
-    res.sendFile(path.join(publicPath, 'resident-login.html'));
-});
-
-app.get('/resident-portal.html', (req, res) => {
-    res.sendFile(path.join(publicPath, 'resident-portal.html'));
-});
-
-app.get('/admin-portal.html', (req, res) => {
-    res.sendFile(path.join(publicPath, 'admin-portal.html'));
-});
-
-// Root Route - Serves Landing Page (index.html) first
-app.get('/', (req, res) => {
-    const indexPath = path.join(publicPath, 'index.html');
-    const loginPath = path.join(publicPath, 'resident-login.html');
-
-    if (fs.existsSync(indexPath)) {
-        return res.sendFile(indexPath);
-    } else if (fs.existsSync(loginPath)) {
-        return res.sendFile(loginPath);
-    } else {
-        return res.status(404).json({
-            success: false,
-            message: 'Landing page (index.html) and fallback pages not found in runtime directory',
-            resolvedPath: publicPath,
-            cwd: process.cwd(),
-            dirname: __dirname
-        });
-    }
-});
-
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({
@@ -116,11 +64,11 @@ app.get('/api/health', (req, res) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
 
-// 404 handler for unmatched routes
-app.use((req, res) => {
+// 404 handler for unmatched API routes
+app.use('/api/*', (req, res) => {
     res.status(404).json({
         success: false,
-        message: 'Endpoint not found',
+        message: 'API endpoint not found',
         path: req.originalUrl
     });
 });
@@ -136,7 +84,7 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start server locally (Vercel exports the app as a serverless module)
+// Start server locally (Vercel handles serverless executions in production)
 const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== 'production') {
     const server = app.listen(PORT, () => {
