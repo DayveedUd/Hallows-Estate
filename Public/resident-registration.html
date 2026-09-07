@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hallows Estate | Modern Luxury Living</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Felipa&family=Red+Hat+Display:ital,wght@0,300..900;1,300..900&family=Tangerine:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="resident-registration.css">
+</head>
+<body>
+  
+  <form class="card" id="registrationForm">
+    <div class="header">
+      <img src="Hallows Estate.png" class="header-image" alt="Hallows Estate logo" />
+    </div>
+
+    <div class="header-text">
+      <h1>Register page</h1>
+      <p>Fill in details below to complete registration</p>
+    </div>
+
+    <!-- Form fields -->
+    <div class="body">
+      <div class="row">
+        <div class="field">
+          <label for="firstName">First name</label>
+          <input type="text" id="firstName" placeholder="David" />
+          <span class="error-message" id="firstNameError">First name is required</span>
+        </div>
+          <div class="field">
+            <label for="MiddleName">Middle name</label>
+            <input type="text" id="middleName" placeholder="Aniekan" />          
+        </div>
+        <div class="field">
+          <label for="lastName">Last name</label>
+          <input type="text" id="lastName" placeholder="Udoinyang" />
+          <span class="error-message" id="lastNameError">Last name is required</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="username">Username</label>
+          <input type="text" id="username" placeholder="davidud" />
+          <span class="error-message" id="usernameError">Username must be at least 3 characters</span>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Min 8 characters" />
+          <span class="error-message" id="passwordError">Password must be at least 8 characters</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="position">Status</label>
+        <select id="position">
+            <option value="" disabled selected>Select Status</option>
+            <option>Owner</option>
+            <option>Tenant</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="property">Property</label>
+        <select id="property">
+            <option value="" disabled selected>Select Property Type</option>
+            <option>Flat</option>
+            <option>Semi-Detached Bungalow</option>
+            <option>Detached Bungalow</option>
+            <option>Semi-Detached Duplex</option>
+            <option>Detached Duplex</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="phone">Phone no.</label>
+          <input type="tel" id="phone" placeholder="080 0000 0000" />
+          <span class="error-message" id="phoneError">Enter a valid phone number</span>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="udoinyangdavid@email.com" />
+          <span class="error-message" id="emailError">Enter a valid email address</span>
+        </div>
+      </div>
+
+    </div>
+        <!-- Submit button -->
+    <div class="footer">
+      <button type="submit" class="submit-btn">Submit</button>
+    </div>
+  </form>
+  <script src="resident-registration.js"></script>
+</body>
+</html>

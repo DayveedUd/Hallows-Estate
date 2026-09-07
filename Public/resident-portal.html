@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hallows Estate | Resident Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Felipa&family=Red+Hat+Display:ital,wght@0,300..900;1,300..900&family=Tangerine:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="resident-portal.css">
+</head>
+<body>
+  <!-- HEADER -->
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <img src="Hallows Estate.png" alt="Hallows Estate Logo" class="header-image">
+            </div>
+            <div class="header-right">
+                <div class="notification-icon" id="notificationIcon">
+                    <svg class="svg-icon-large" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                    <span class="notification-badge" id="notificationBadge">0</span>
+                </div>
+                <div class="profile-menu">
+                    <div class="profile-avatar" id="profileAvatar">--</div>
+                    <span id="residentName">Resident</span>
+                </div>
+            </div>
+        </div>
+    </header>
+ 
+    <!-- MAIN CONTENT -->
+    <div class="container">
+        <!-- WELCOME SECTION -->
+        <div class="welcome-section">
+            <div class="welcome-header">
+                <div class="welcome-text">
+                    <h1>Welcome back, <span id="welcomeName">Resident</span></h1>
+                    <p class="resident-info" id="residentInfo">Unit -- | --</p>
+                </div>
+                <span class="status-badge active" id="accountStatus">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm4.24 16L12 15.45 7.77 18l1.12-4.81-3.73-3.23 4.92-.42L12 5l1.92 4.53 4.92.42-3.73 3.23L16.23 18z"/></svg> 
+                    Account Pending
+                </span>
+            </div>
+ 
+            <div class="quick-actions">
+                <button class="action-btn" data-action="openPayment">
+                    <span class="action-btn-icon">
+                        <svg class="svg-icon-large" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+                    </span>
+                    <span class="action-btn-text">Pay Estate Dues</span>
+                </button>
+                <button class="action-btn" data-action="openMaintenance">
+                    <span class="action-btn-icon">
+                        <svg class="svg-icon-large" viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+                    </span>
+                    <span class="action-btn-text">Report Issue</span>
+                </button>
+                <button class="action-btn" data-action="openBooking">
+                    <span class="action-btn-icon">
+                        <svg class="svg-icon-large" viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                    </span>
+                    <span class="action-btn-text">Book Facility</span>
+                </button>
+            </div>
+ 
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-grey);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                    <div>
+                        <div style="color: var(--dark-grey); font-size: 0.9rem; margin-bottom: 0.25rem;">Estate Dues Status</div>
+                        <div style="font-size: 1.25rem; font-weight: 600;" id="duesStatus">--</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--dark-grey); font-size: 0.9rem; margin-bottom: 0.25rem;">Outstanding Balance</div>
+                        <div style="font-size: 1.25rem; font-weight: 600; color: var(--navy);" id="outstandingBalance">₦0.00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- ALERT BANNER -->
+        <div class="alert alert-warning" id="alertBanner">
+            <span class="alert-icon">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+            </span>
+            <div>
+                <strong>Generator Maintenance Scheduled</strong>
+                <p>Aug 31 - Sept 2, 2026. Expect power interruptions between 2-6 AM daily.</p>
+            </div>
+        </div>
+ 
+        <!-- NAVIGATION TABS -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="bills">Bills & Payments</button>
+            <button class="nav-tab" data-tab="maintenance">Maintenance</button>
+            <button class="nav-tab" data-tab="announcements">Announcements</button>
+            <button class="nav-tab" data-tab="facilities">Facilities</button>
+            <button class="nav-tab" data-tab="documents">Documents</button>
+        </div>
+ 
+        <!-- BILLS & PAYMENTS SECTION -->
+        <section id="bills" class="section active">
+            <h2 class="section-title">Bills & Payments</h2>
+ 
+            <div class="cards-grid" id="billsGrid">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Estate Dues</div>
+                        <div class="card-badge" id="billBadge">--</div>
+                    </div>
+                    <div class="card-content">
+                        <div class="bill-row">
+                            <span class="bill-label">Annual Due</span>
+                            <span class="bill-amount" id="billAmount">₦15,000</span>
+                        </div>
+                        <div class="bill-row">
+                            <span class="bill-label">Due Date</span>
+                            <span class="bill-amount">Annual</span>
+                        </div>
+                        <div class="bill-row">
+                            <span class="bill-label">Last Payment</span>
+                            <span class="bill-amount" id="lastPaymentDate">No record</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-full-width" id="payDuesBtn" data-action="openPayment">Pay Dues</button>
+                </div>
+            </div>
+ 
+            <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--navy); font-size: 1.1rem; font-weight: 600;">Payment History</h3>
+            <div class="card">
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; font-size: 0.95rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border-grey);">
+                                <th style="text-align: left; padding: 1rem; color: var(--navy); font-weight: 600;">Date</th>
+                                <th style="text-align: left; padding: 1rem; color: var(--navy); font-weight: 600;">Description</th>
+                                <th style="text-align: right; padding: 1rem; color: var(--navy); font-weight: 600;">Amount</th>
+                                <th style="text-align: center; padding: 1rem; color: var(--navy); font-weight: 600;">Receipt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentHistoryTable">
+                            <tr>
+                                <td style="padding: 1rem;">No payment history</td>
+                                <td style="padding: 1rem;">--</td>
+                                <td style="padding: 1rem; text-align: right;">₦0.00</td>
+                                <td style="padding: 1rem; text-align: center;">--</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- MAINTENANCE SECTION -->
+        <section id="maintenance" class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 class="section-title" style="margin-bottom: 0;">Maintenance Requests</h2>
+                <button class="btn btn-primary" data-action="openMaintenance">+ Report New Issue</button>
+            </div>
+
+            <div id="maintenanceList">
+                <!-- Populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- ANNOUNCEMENTS SECTION -->
+        <section id="announcements" class="section">
+            <h2 class="section-title">Estate Announcements</h2>
+            <div id="announcementsList">
+                <!-- Populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- FACILITIES SECTION -->
+        <section id="facilities" class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 class="section-title" style="margin-bottom: 0;">Facility Bookings</h2>
+                <button class="btn btn-primary" data-action="openBooking">+ Book Facility</button>
+            </div>
+
+            <div id="facilitiesList">
+                <!-- Populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- DOCUMENTS SECTION -->
+        <section id="documents" class="section">
+            <h2 class="section-title">My Documents</h2>
+            <div class="card">
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; font-size: 0.95rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border-grey);">
+                                <th style="text-align: left; padding: 1rem; color: var(--navy); font-weight: 600;">Document</th>
+                                <th style="text-align: left; padding: 1rem; color: var(--navy); font-weight: 600;">Type</th>
+                                <th style="text-align: left; padding: 1rem; color: var(--navy); font-weight: 600;">Date</th>
+                                <th style="text-align: center; padding: 1rem; color: var(--navy); font-weight: 600;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="documentsTable">
+                            <tr>
+                                <td style="padding: 1rem;">No documents available</td>
+                                <td style="padding: 1rem;">--</td>
+                                <td style="padding: 1rem;">--</td>
+                                <td style="padding: 1rem; text-align: center;">--</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content" style="position: relative;">
+            <button class="modal-close" data-close-modal="paymentModal">✕</button>
+            <h2 class="modal-header">Pay Estate Dues</h2>
+ 
+            <div class="form-group">
+                <label class="form-label">Amount to Pay</label>
+                <input type="number" id="paymentAmount" placeholder="₦0.00" step="0.01">
+            </div>
+ 
+            <div class="form-group">
+                <label class="form-label">Payment Method</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="payment" value="card" checked style="width: auto; margin-right: 0.75rem;">
+                        <span style="font-weight: 500;">
+                            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 8H4V4h16m0 12H4c-1.1 0-2 .9-2 2v4h20v-4c0-1.1-.9-2-2-2zm-6 3v2h-4v-2z"/></svg> Card
+                        </span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="payment" value="bank" style="width: auto; margin-right: 0.75rem;">
+                        <span style="font-weight: 500;">
+                            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg> Bank Transfer
+                        </span>
+                    </label>
+                </div>
+            </div>
+ 
+            <div class="form-group">
+                <label class="form-label">Confirm Phone Number</label>
+                <input type="tel" id="userPhoneInput" placeholder="Enter phone number">
+            </div>
+ 
+            <button class="btn btn-primary btn-full-width" data-action="processPayment">Proceed to Payment</button>
+            <button class="btn btn-secondary btn-full-width" data-close-modal="paymentModal">Cancel</button>
+        </div>
+    </div>
+ 
+    <!-- Maintenance Report Modal -->
+    <div id="maintenanceModal" class="modal">
+        <div class="modal-content" style="position: relative;">
+            <button class="modal-close" data-close-modal="maintenanceModal">✕</button>
+            <h2 class="modal-header">Report an Issue</h2>
+ 
+            <div class="form-group">
+                <label class="form-label">Issue Category</label>
+                <select id="maintenanceCategory">
+                    <option value="">Select Category</option>
+                    <option>Power / Electricity</option>
+                    <option>Water Supply</option>
+                    <option>Roads & Pavements</option>
+                    <option>Security</option>
+                    <option>Waste Management</option>
+                    <option>General Maintenance</option>
+                </select>
+            </div>
+ 
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="maintenanceDesc" placeholder="Describe the issue in detail..."></textarea>
+            </div>
+ 
+            <div class="form-group">
+                <label class="form-label">Upload Photo (Optional)</label>
+                <div style="border: 2px dashed var(--border-grey); border-radius: 4px; padding: 2rem; text-align: center; cursor: pointer;">
+                    <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">
+                        <svg class="svg-icon-large" viewBox="0 0 24 24"><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                    </div>
+                    <div style="color: var(--dark-grey); font-size: 0.95rem;">Click to upload photo or drag and drop</div>
+                </div>
+            </div>
+ 
+            <div class="form-group">
+                <label class="form-label">Priority Level</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="priority" value="normal" checked style="width: auto; margin-right: 0.75rem;">
+                        <span style="font-weight: 500;">Normal</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="priority" value="urgent" style="width: auto; margin-right: 0.75rem;">
+                        <span style="font-weight: 500;">Urgent</span>
+                    </label>
+                </div>
+            </div>
+ 
+            <button class="btn btn-primary btn-full-width" data-action="submitMaintenance">Submit Report</button>
+            <button class="btn btn-secondary btn-full-width" data-close-modal="maintenanceModal">Cancel</button>
+        </div>
+    </div>
+
+   <!-- Facility Booking Modal -->
+    <div id="bookingModal" class="modal">
+        <div class="modal-content" style="position: relative;">
+            <button class="modal-close" data-close-modal="bookingModal">✕</button>
+            <h2 class="modal-header" id="bookingFacility">Book Facility</h2>
+
+            <div class="form-group">
+                <label class="form-label">Select Date</label>
+                <input type="date" id="bookingDate">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Select Facility</label>
+                <select id="bookingFacilitySelect">
+                    <option value="">Select Facility</option>
+                    <option value="Community Hall">Community Hall</option>
+                    <option value="Football Field">Football Field</option>
+                    <option value="Volleyball Court">Volleyball Court</option>
+                    <option value="Tennis Court">Tennis Court</option>
+                    <option value="Basketball Court">Basketball Court</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Time Slot</label>
+                <select id="bookingTime">
+                    <option value="">Select Time</option>
+                    <option>6:00 AM - 7:00 AM</option>
+                    <option>7:00 AM - 8:00 AM</option>
+                    <option>2:00 PM - 3:00 PM</option>
+                    <option>3:00 PM - 4:00 PM</option>
+                    <option>6:00 PM - 7:00 PM</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary btn-full-width" data-action="confirmBooking">Confirm & Pay Deposit</button>
+            <button class="btn btn-secondary btn-full-width" data-close-modal="bookingModal">Cancel</button>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-section">
+                <h3>Quick Links</h3>
+                <a href="#" data-tab="bills">Dashboard</a>
+                <a href="#" data-tab="bills">Payment Portal</a>
+                <a href="#" data-tab="maintenance">Report Issue</a>
+                <a href="#" data-tab="facilities">Facilities</a>
+            </div>
+            <div class="footer-section">
+                <h3>Support</h3>
+                <a href="#">FAQs</a>
+                <a href="#">Contact Us</a>
+                <a href="#">Help Center</a>
+                <a href="#">Terms & Conditions</a>
+            </div>
+            <div class="footer-section">
+                <h3>Emergency</h3>
+                <div class="emergency-number">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>090 000 0000
+                </div>
+                <a href="#">Report Security Issue</a>
+                <a href="#">Medical Emergency</a>
+            </div>
+            <div class="footer-section">
+                <h3>Hallows Estate</h3>
+                <a href="#">About Us</a>
+                <a href="#">Management</a>
+                <a href="#">Residents Association</a>
+                <a href="#" id="residentLogoutBtn">Logout Resident</a>
+            </div>
+        </div>
+        <div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 2rem; padding-top: 2rem; text-align: center; font-size: 0.9rem; color: rgba(255,255,255,0.8);">
+            <p>&copy; 2026 Hallows Estate. All rights reserved. | Powered by Hallows Management System</p>
+        </div>
+    </footer>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="toast" style="display: none;"></div>
+    <script src="resident-portal.js"></script>
+</body>
+</html>

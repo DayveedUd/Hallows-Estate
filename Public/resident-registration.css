@@ -1,0 +1,215 @@
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: "Red Hat Display", sans-serif;
+      background: linear-gradient(to bottom, 
+                  rgba(233, 216, 189, 0.8) 0%,    
+                  rgba(183, 143, 81, 0.8) 30%,  
+                  rgba(208, 162, 89, 0.8) 100%   
+                  );     
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;      /* vertically centers the card */
+      justify-content: center;
+      overflow: hidden;         /* no page scroll */
+    }
+
+    body::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, 
+                  rgba(0, 0, 0, 0.8) 0%,    
+                  rgba(0, 0, 0, 0.7) 30%,  
+                  rgba(0, 0, 0, 0.3) 100%  
+                  ), url('housing-estate.png') center/cover no-repeat;
+      z-index: -1;
+      /* Animation setup: 6-second total loop, infinite smooth transition */
+      animation: phaseBg 3s ease-in-out infinite alternate;
+    }
+
+    /* ---------- 2. The white card that holds the whole form ---------- */
+    .card {
+      max-width: 480px;         /* stops it getting too wide on big screens */
+      width: 100%;
+      margin: 0 auto;           /* centers the card horizontally */
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1px solid #E4E6E0;
+      overflow: hidden;         
+      max-height: 96vh;
+      overflow-y: auto;         /* scrolls inside the card only if truly needed */
+    }
+
+    .header {
+      background: linear-gradient(135deg, #f6d6b3 0%, #5A4A3A 100%);
+      padding: 32px 32px 20px;
+      text-align: center;
+    }
+
+    .header-image {
+      width: 250px;
+      height: 80px;          
+      object-fit: contain;
+      margin-bottom: 18px;
+    }
+
+    .header-text {
+      background: #FFFFFF;
+      padding: 32px 32px 12px;
+      font-family: "Red Hat Display", sans-serif;
+      text-align: center;
+      font-size: 12px;
+      margin-bottom: 0;
+      color: #3E3E3E;
+    }
+
+    /* ---------- 4. Form body ---------- */
+    .body {
+      padding: 18px 28px 6px;
+      font-family: "Red Hat Display", sans-serif;
+    }
+
+    /* Puts two fields side by side, e.g. First name / Last name */
+    .row {
+      display: flex;
+      gap: 14px;
+    }
+
+    .field {
+      flex: 1;                  /* makes fields in a .row share space equally */
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      color: #3E3E3E;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 4px;
+    }
+
+    /* Shared styling for text inputs and the select dropdown */
+    .field input,.field select {
+      width: 100%;
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid #D8DBD5;
+      font-size: 13px;
+      color: #16241D;
+      background: #ffffff;
+      text-align: center;
+      font-family: inherit;      /* makes the input use the same font as the page */
+    }
+
+    .field input:focus,.field select:focus {
+      outline: none;   
+    }
+
+    .field input::placeholder {
+      color: #9AA39C;
+    }
+
+    /* Red border on a field that failed validation */
+    .field input.error,.field select.error {
+      border-color: #D64545;
+    }
+
+    /* Small red message shown under an invalid field */
+    .error-message {
+      display: none;
+      font-size: 11px;
+      color: #D64545;
+      margin-top: 4px;
+      text-align: left;
+    }
+
+    .error-message.visible {
+      display: block;
+    }
+
+    /* The select dropdown needs its arrow drawn manually since we removed the default */
+    .field select {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, #5B6660 50%),
+                        linear-gradient(135deg, #5B6660 50%, transparent 50%);
+      background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+    }
+
+    /* ---------- 6. Submit button ---------- */
+    .footer {
+      padding: 20px 30px;
+      display: flex;
+      justify-content: flex-end;   /* pushes the button to the right */
+    }
+
+    .submit-btn {
+      background: linear-gradient(135deg, #f6d6b3 0%, #5A4A3A 100%);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 28px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .submit-btn:hover {
+      background: #3E3E3E;
+    }
+
+    .submit-btn:disabled {
+      background: #9AA39C;
+      cursor: not-allowed;
+    }
+/* ---------- Responsive ---------- */
+        @media (max-width: 480px) {
+            body {
+            padding: 12px;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+            }
+
+            .card {
+            max-width: 100%;
+            border-radius: 15px;
+            }
+
+            .header {
+            padding: 28px 20px;
+            }
+
+            .body {
+            padding: 24px 20px 8px;
+            }
+
+            .footer {
+            padding: 8px 20px 24px;
+            }
+        }
+
+        @media (max-height: 480px) {
+            body {
+            align-items: flex-start;
+            overflow-y: auto;
+            }
+        }

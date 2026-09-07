@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Hallows Estate Admin Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Felipa&family=Red+Hat+Display:ital,wght@0,300..900;1,300..900&family=Tangerine:wght@400;700&display=swap" rel="stylesheet">
+    <link href="resident-login.css" rel="stylesheet">
+</head>
+<body>
+    <form class="card" id="loginForm">
+        <div class="header">
+            <img src="Hallows Estate.png" alt="Hallows Estate logo" />
+        </div>
+        <div class="header-text">
+            <h1>Admin Login</h1>
+            <p>Sign in to manage your residents</p>
+        </div>
+
+        <div class="body">
+            <div class="field">
+                <label for="username">Admin ID</label>
+                <input type="text" id="username" autocomplete="username" />
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+            <div class="password-wrap">
+                <input type="password" id="password" autocomplete="current-password" />
+                <button type="button" class="toggle-password" id="togglePassword" aria-label="Show password">
+                    <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+            </div>
+            </div>
+            <p class="error-message" id="loginError"></p>
+        </div>
+
+        <div class="footer">
+            <button type="submit" class="login-btn" id="loginBtn">Log in</button>
+        </div>
+    </form>
+    <script src="admin-login.js"></script>
+</body>
+</html>

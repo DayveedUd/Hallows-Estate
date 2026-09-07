@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hallows Estate | Admin Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    <!-- Using resident-portal.css directly for consistent layout, fonts, and theme -->
+    <link rel="stylesheet" href="resident-portal.css">
+</head>
+<body>
+    <!-- HEADER -->
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <img src="Hallows Estate.png" alt="Hallows Estate Logo" class="header-image">
+            </div>
+            <div class="header-right">
+                <div class="notification-icon" id="adminNotificationIcon">
+                    <svg class="svg-icon-large" viewBox="0 0 24 24">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                    </svg>
+                    <span class="notification-badge" id="adminNotificationBadge">0</span>
+                </div>
+                <div class="profile-menu">
+                    <div class="profile-avatar">AD</div>
+                    <span>Estate Admin</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <div class="container">
+        
+        <!-- WELCOME SECTION -->
+        <div class="welcome-section">
+            <div class="welcome-header">
+                <div class="welcome-text">
+                    <h1>Admin Control Dashboard</h1>
+                    <p class="resident-info">Estate Operations & Resident Overview</p>
+                </div>
+                <span class="status-badge active">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+                    </svg>
+                    System Online
+                </span>
+            </div>
+
+            <!-- OVERVIEW METRICS -->
+            <div style="margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--border-light);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+                    <div class="card" style="padding: 1rem; text-align: center;">
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">Total Residents</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary-teal);" id="metricTotalResidents">0</div>
+                    </div>
+                    <div class="card" style="padding: 1rem; text-align: center;">
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">Pending Approvals</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--warning);" id="metricPendingApprovals">0</div>
+                    </div>
+                    <div class="card" style="padding: 1rem; text-align: center;">
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">Open Complaints</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--danger);" id="metricOpenComplaints">0</div>
+                    </div>
+                    <div class="card" style="padding: 1rem; text-align: center;">
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">Dues Collected (2026)</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--success);" id="metricDuesCollected">₦0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QUICK ACTIONS -->
+            <div class="quick-actions">
+                <button class="action-btn" data-action="openAnnouncement">
+                    <span class="action-btn-icon">
+                        <svg class="svg-icon-large" viewBox="0 0 24 24">
+                            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/>
+                        </svg>
+                    </span>
+                    <span class="action-btn-text">Post Announcement</span>
+                </button>
+                <button class="action-btn" data-tab="residents">
+                    <span class="action-btn-icon">
+                        <svg class="svg-icon-large" viewBox="0 0 24 24">
+                            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                    </span>
+                    <span class="action-btn-text">Manage Residents</span>
+                </button>
+                <button class="action-btn" data-tab="complaints">
+                    <span class="action-btn-icon">
+                        <svg class="svg-icon-large" viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+                    </span>
+                    <span class="action-btn-text">View Complaints</span>
+                </button>
+                <button class="action-btn" data-tab="dues">
+                    <span class="action-btn-icon">
+                        <svg class="svg-icon-large" viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                    </span>
+                    <span class="action-btn-text">Track Dues</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- NAVIGATION TABS -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="residents">Resident Profiles</button>
+            <button class="nav-tab" data-tab="complaints">Complaints & Tickets</button>
+            <button class="nav-tab" data-tab="dues">Dues Tracker</button>
+            <button class="nav-tab" data-tab="announcements">Announcements</button>
+            <button class="nav-tab" data-tab="facilities">Facility Bookings</button>
+        </div>
+
+        <!-- SECTION 1: RESIDENT PROFILES -->
+        <section id="residents" class="section active">
+            <h2 class="section-title">Registered Residents</h2>
+            
+            <div class="filter-tabs">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="owner">Owners</button>
+                <button class="filter-btn" data-filter="tenant">Tenants</button>
+                <button class="filter-btn" data-filter="pending">Pending Approval</button>
+            </div>
+
+            <div class="card">
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; font-size: 0.95rem; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border-light); text-align: left;">
+                                <th style="padding: 1rem;">Full Name</th>
+                                <th style="padding: 1rem;">Username</th>
+                                <th style="padding: 1rem;">Status</th>
+                                <th style="padding: 1rem;">Property Type</th>
+                                <th style="padding: 1rem;">Contact Info</th>
+                                <th style="padding: 1rem;">Account State</th>
+                                <th style="padding: 1rem; text-align: center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="residentTableBody">
+                            <!-- Populated dynamically via JavaScript upon registration -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: COMPLAINTS & TICKETS -->
+        <section id="complaints" class="section">
+            <h2 class="section-title">Maintenance & Complaints Management</h2>
+
+            <div class="cards-grid" id="complaintsContainer">
+                <!-- Populated dynamically via JavaScript -->
+            </div>
+        </section>
+
+        <!-- SECTION 3: DUES TRACKER -->
+        <section id="dues" class="section">
+            <h2 class="section-title">Estate Dues & Payments Ledger</h2>
+
+            <div class="card">
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; font-size: 0.95rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border-light); text-align: left;">
+                                <th style="padding: 1rem;">Resident</th>
+                                <th style="padding: 1rem;">Property</th>
+                                <th style="padding: 1rem;">Annual Fee</th>
+                                <th style="padding: 1rem;">Status</th>
+                                <th style="padding: 1rem;">Last Payment Date</th>
+                                <th style="padding: 1rem; text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="duesTableBody">
+                            <!-- Populated dynamically via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: ANNOUNCEMENTS -->
+        <section id="announcements" class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 class="section-title" style="margin-bottom: 0;">Published Announcements</h2>
+                <button class="btn btn-primary" data-action="openAnnouncement">+ Create Announcement</button>
+            </div>
+
+            <div id="adminAnnouncementsList">
+                <!-- Populated dynamically via JavaScript -->
+            </div>
+        </section>
+
+        <!-- SECTION 5: FACILITY BOOKINGS -->
+        <section id="facilities" class="section">
+            <h2 class="section-title">Facility Bookings Overview</h2>
+            <div class="card">
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; font-size: 0.95rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border-light); text-align: left;">
+                                <th style="padding: 1rem;">Facility</th>
+                                <th style="padding: 1rem;">Resident</th>
+                                <th style="padding: 1rem;">Date & Time Slot</th>
+                                <th style="padding: 1rem;">Payment Status</th>
+                                <th style="padding: 1rem; text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="facilitiesTableBody">
+                            <!-- Populated dynamically via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- MODAL: POST ANNOUNCEMENT -->
+    <div id="announcementModal" class="modal">
+        <div class="modal-content" style="position: relative;">
+            <button class="modal-close" data-close-modal="announcementModal">✕</button>
+            <h2 class="modal-header">Post New Announcement</h2>
+
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select id="newAnnouncementCategory">
+                    <option value="Estate Management">Estate Management</option>
+                    <option value="Security Alert">Security Alert</option>
+                    <option value="Facilities">Facilities</option>
+                    <option value="General Notice">General Notice</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Announcement Title</label>
+                <input type="text" id="newAnnouncementTitle" placeholder="e.g., Water Maintenance Schedule">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Message Details</label>
+                <textarea id="newAnnouncementBody" placeholder="Write the announcement body here..."></textarea>
+            </div>
+
+            <button class="btn btn-primary btn-full-width" data-action="postAnnouncement">Broadcast Announcement</button>
+            <button class="btn btn-secondary btn-full-width" data-close-modal="announcementModal">Cancel</button>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-section">
+                <h3>Admin Quick Links</h3>
+                <a href="#" data-tab="residents">Resident Management</a>
+                <a href="#" data-tab="dues">Payment Records</a>
+                <a href="#" data-tab="complaints">Maintenance System</a>
+            </div>
+            <div class="footer-section">
+                <h3>System Support</h3>
+                <a href="#">IT Help Desk</a>
+                <a href="#">Security Central</a>
+            </div>
+            <div class="footer-section">
+                <h3>Emergency Control</h3>
+                <div class="emergency-number">090 000 0000</div>
+                <a href="#">Dispatch Security Unit</a>
+            </div>
+            <div class="footer-section">
+                <h3>Hallows Estate</h3>
+                <a href="#">System Overview</a>
+                <a href="#" id="adminLogoutBtn">Logout Admin</a>
+            </div>
+        </div>
+        <div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 2rem; padding-top: 2rem; text-align: center; font-size: 0.9rem; color: rgba(255,255,255,0.8);">
+            <p>&copy; 2026 Hallows Estate Admin Operations. Powered by Hallows Management System</p>
+        </div>
+    </footer>
+    <script src="admin-portal.js"></script>
+</body>
+</html>
