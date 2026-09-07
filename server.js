@@ -8,7 +8,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoose = require('mongoose');
-const connectDB = require('./Backend/config/db');
 
 // Import routes
 const adminRoutes = require('./Backend/routes/adminRoutes');
@@ -19,20 +18,14 @@ const app = express();
 
 // Middleware
 app.use(helmet({
-    contentSecurityPolicy: false // Prevents CSP from blocking inline styles or assets when hosting HTML statically
+    contentSecurityPolicy: false // Allows rendering static assets without strict CSP blocking
 }));
 
-// Dynamic CORS Configuration (Allows localhost during development and deployed origins in production)
-const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:5000',
-    'http://127.0.0.1:5000'
-];
-
+// CORS Configuration
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, curl, or direct browser loads)
-        if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'production') {
+        // Allows direct browser loads, local dev, or production deployments
+        if (!origin || process.env.NODE_ENV === 'production' || origin.includes('localhost') || origin.includes('127.0.0.1')) {
             return callback(null, true);
         }
         return callback(new Error('CORS policy violation'), false);
@@ -43,11 +36,14 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static frontend assets
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static frontend assets from public/ directory
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)
+const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
+
+mongoose.connect(mongoURI)
 .then(() => {
     console.log("MongoDB connected successfully");
 })
@@ -56,17 +52,35 @@ mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)
     console.log(error);
 });
 
-// Root route handler (Prevents 404 on base URL launch)
+// Explicit Page Routes for HTML files
+app.get('/resident-login.html', (req, res) => {
+    res.sendFile(path.join(publicPath, 'resident-login.html'));
+});
+
+app.get('/resident-portal.html', (req, res) => {
+    res.sendFile(path.join(publicPath, 'resident-portal.html'));
+});
+
+app.get('/admin-portal.html', (req, res) => {
+    res.sendFile(path.join(publicPath, 'admin-portal.html'));
+});
+
+// Root Route Fallback
 app.get('/', (req, res) => {
-    const indexPath = path.join(__dirname, 'public', 'index.html');
-    
-    // Check if an index.html exists in public directory; send file if present, else JSON health status
-    res.sendFile(indexPath, (err) => {
+    const loginPath = path.join(publicPath, 'resident-login.html');
+    const indexPath = path.join(publicPath, 'index.html');
+
+    // Tries to serve resident-login.html first, then index.html, then API fallback message
+    res.sendFile(loginPath, (err) => {
         if (err) {
-            res.status(200).json({
-                success: true,
-                message: 'Hallows Estate API is running successfully!',
-                timestamp: new Date().toISOString()
+            res.sendFile(indexPath, (err2) => {
+                if (err2) {
+                    res.status(200).json({
+                        success: true,
+                        message: 'Hallows Estate API is running successfully!',
+                        timestamp: new Date().toISOString()
+                    });
+                }
             });
         }
     });
@@ -110,7 +124,6 @@ const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
     console.log(`🚀 Hallows Estate Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Database: ${process.env.MONGO_URI || process.env.MONGODB_URI || 'Local MongoDB'}`);
 });
 
 // Handle server errors
