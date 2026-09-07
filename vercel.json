@@ -26,7 +26,7 @@
       "destination": "/public/admin-portal.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!public/).*)",
       "destination": "/public/$1"
     }
   ]
