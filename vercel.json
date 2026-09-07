@@ -2,6 +2,10 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/server.js"
+    },
+    {
       "source": "/",
       "destination": "/public/index.html"
     },
@@ -20,10 +24,6 @@
     {
       "source": "/admin-portal.html",
       "destination": "/public/admin-portal.html"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/server.js"
     },
     {
       "source": "/(.*)",
