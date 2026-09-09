@@ -33,11 +33,80 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Safe Public Directory Resolution across Vercel environments
-const publicPath = path.join(__dirname, 'public');
+// ================================================
+// VERCEL COMPATIBLE STATIC FILE SERVING
+// ================================================
+
+// Find the public directory
+let publicPath = path.join(__dirname, 'public');
+
+// Check if public exists, if not try alternative paths
+if (!fs.existsSync(publicPath)) {
+    const altPaths = [
+        path.join(process.cwd(), 'public'),
+        path.join('/var/task', 'public'),
+        path.join(__dirname, '..', 'public')
+    ];
+    
+    for (const altPath of altPaths) {
+        if (fs.existsSync(altPath)) {
+            publicPath = altPath;
+            break;
+        }
+    }
+}
+
+console.log(`📁 Public directory: ${publicPath}`);
+console.log(`📁 Public exists: ${fs.existsSync(publicPath)}`);
+
+// Serve static files
 app.use(express.static(publicPath));
 
-// Database Connection Helper for Serverless
+// Function to get file content (reads file or returns null)
+const getFileContent = (fileName) => {
+    const filePath = path.join(publicPath, fileName);
+    try {
+        if (fs.existsSync(filePath)) {
+            return fs.readFileSync(filePath, 'utf8');
+        }
+    } catch (err) {
+        console.error(`Error reading ${fileName}:`, err.message);
+    }
+    return null;
+};
+
+// Serve HTML pages
+const serveHtml = (res, fileName) => {
+    const content = getFileContent(fileName);
+    if (content) {
+        res.setHeader('Content-Type', 'text/html');
+        return res.send(content);
+    }
+    
+    // Fallback HTML if file not found
+    return res.status(404).send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Hallows Estate</title>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                .error { color: #721c24; background: #f8d7da; padding: 20px; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <div class="error">
+                <h1>⚠️ File Not Found</h1>
+                <p>Requested file: <strong>${fileName}</strong></p>
+                <p>Public directory: <strong>${publicPath}</strong></p>
+                <p>Please check your deployment configuration.</p>
+            </div>
+        </body>
+        </html>
+    `);
+};
+
+// Database Connection
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
 let dbConnected = false;
 
@@ -59,7 +128,6 @@ const connectDB = async () => {
     }
 };
 
-// Database Connection Middleware (Never blocks or crashes the app)
 app.use(async (req, res, next) => {
     try {
         await connectDB();
@@ -69,33 +137,15 @@ app.use(async (req, res, next) => {
     next();
 });
 
-// Helper to safely send static files without crashing
-const safeSendFile = (res, fileName) => {
-    // Try multiple possible paths for Vercel compatibility
-    const possiblePaths = [
-        path.join(__dirname, 'public', fileName),
-        path.join(process.cwd(), 'public', fileName),
-        path.join('/var/task', 'public', fileName)
-    ];
-    
-    for (const filePath of possiblePaths) {
-        if (fs.existsSync(filePath)) {
-            return res.sendFile(filePath);
-        }
-    }
-    
-    return res.status(404).json({
-        success: false,
-        message: `Requested file (${fileName}) not found in runtime directory`,
-        searchedPaths: possiblePaths
-    });
-};
-
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+    const files = fs.existsSync(publicPath) ? fs.readdirSync(publicPath) : [];
     res.json({
         status: 'Server is running',
         dbConnected: Boolean(dbConnected),
+        publicPath: publicPath,
+        publicExists: fs.existsSync(publicPath),
+        filesInPublic: files,
         timestamp: new Date().toISOString()
     });
 });
@@ -104,13 +154,16 @@ app.get('/api/health', (req, res) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
 
-// Explicit Static HTML Routes (Express 5 Syntax)
-app.get(['/resident-login', '/resident-login.html'], (req, res) => safeSendFile(res, 'resident-login.html'));
-app.get(['/resident-portal', '/resident-portal.html'], (req, res) => safeSendFile(res, 'resident-portal.html'));
-app.get(['/admin-portal', '/admin-portal.html'], (req, res) => safeSendFile(res, 'admin-portal.html'));
+// HTML Routes
+app.get(['/resident-login', '/resident-login.html'], (req, res) => serveHtml(res, 'resident-login.html'));
+app.get(['/resident-portal', '/resident-portal.html'], (req, res) => serveHtml(res, 'resident-portal.html'));
+app.get(['/admin-portal', '/admin-portal.html'], (req, res) => serveHtml(res, 'admin-portal.html'));
 
-// Root / Fallback Landing Page Route
-app.get('{*splat}', (req, res) => {
+// Root route
+app.get('/', (req, res) => serveHtml(res, 'index.html'));
+
+// Fallback
+app.get('*', (req, res) => {
     if (req.originalUrl.startsWith('/api')) {
         return res.status(404).json({
             success: false,
@@ -118,10 +171,10 @@ app.get('{*splat}', (req, res) => {
             path: req.originalUrl
         });
     }
-    safeSendFile(res, 'index.html');
+    serveHtml(res, 'index.html');
 });
 
-// Global Error Handler
+// Error Handler
 app.use((err, req, res, next) => {
     console.error('Runtime Error:', err);
     res.status(err.status || 500).json({
@@ -130,11 +183,12 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start local server during non-production runs
+// Start server
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
         console.log(`🚀 Hallows Estate Server running on port ${PORT}`);
+        console.log(`📁 Public directory: ${publicPath}`);
     });
 }
 
