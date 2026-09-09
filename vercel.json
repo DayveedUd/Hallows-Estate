@@ -1,35 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Build complete'",
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 30,
-      "memory": 1024
-    }
-  },
-  "env": {
-    "MONGODB_URI": {
-      "description": "MongoDB connection string"
-    },
-    "JWT_SECRET": {
-      "description": "JWT secret key for token signing"
-    },
-    "NODE_ENV": {
-      "description": "Node environment (production/development)"
-    }
-  },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/.*",
-      "dest": "/api/index.js"
-    },
-    {
-      "src": "/(.*\\.html)",
-      "dest": "/public/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/public/index.html"
+      "source": "/api/:path*",
+      "destination": "/server.js"
     }
   ]
 }
