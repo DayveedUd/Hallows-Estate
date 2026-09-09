@@ -4,7 +4,15 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/api/index.js"
+      "destination": "/server.js"
+    },
+    {
+      "source": "/",
+      "destination": "/public/index.html"
+    },
+    {
+      "source": "/:path((?!api/).*)",
+      "destination": "/public/:path"
     }
   ]
 }
