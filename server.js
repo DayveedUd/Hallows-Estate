@@ -34,18 +34,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ================================================
-// VERCEL COMPATIBLE STATIC FILE SERVING
+// STATIC FILE SERVING FOR VERCEL
 // ================================================
 
-// Find the public directory
+// Try multiple paths to find the public directory
 let publicPath = path.join(__dirname, 'public');
 
-// Check if public exists, if not try alternative paths
+// If public doesn't exist at __dirname, try other locations
 if (!fs.existsSync(publicPath)) {
     const altPaths = [
         path.join(process.cwd(), 'public'),
-        path.join('/var/task', 'public'),
-        path.join(__dirname, '..', 'public')
+        '/var/task/public',
+        path.join('/var/task', 'public')
     ];
     
     for (const altPath of altPaths) {
@@ -62,48 +62,61 @@ console.log(`📁 Public exists: ${fs.existsSync(publicPath)}`);
 // Serve static files
 app.use(express.static(publicPath));
 
-// Function to get file content (reads file or returns null)
-const getFileContent = (fileName) => {
+// HTML file cache (fallback if static serving fails)
+const htmlCache = {};
+const htmlFiles = ['index.html', 'resident-login.html', 'resident-portal.html', 'admin-portal.html'];
+
+// Try to load HTML files into memory
+for (const fileName of htmlFiles) {
     const filePath = path.join(publicPath, fileName);
     try {
         if (fs.existsSync(filePath)) {
-            return fs.readFileSync(filePath, 'utf8');
+            htmlCache[fileName] = fs.readFileSync(filePath, 'utf8');
+            console.log(`✅ Loaded ${fileName} into cache`);
         }
     } catch (err) {
-        console.error(`Error reading ${fileName}:`, err.message);
+        console.log(`⚠️ Could not cache ${fileName}`);
     }
-    return null;
-};
+}
 
-// Serve HTML pages
+// Helper function to serve HTML
 const serveHtml = (res, fileName) => {
-    const content = getFileContent(fileName);
-    if (content) {
+    // Try to serve from cache first
+    if (htmlCache[fileName]) {
         res.setHeader('Content-Type', 'text/html');
-        return res.send(content);
+        return res.send(htmlCache[fileName]);
     }
     
-    // Fallback HTML if file not found
-    return res.status(404).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Hallows Estate</title>
-            <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-                .error { color: #721c24; background: #f8d7da; padding: 20px; border-radius: 5px; }
-            </style>
-        </head>
-        <body>
-            <div class="error">
-                <h1>⚠️ File Not Found</h1>
-                <p>Requested file: <strong>${fileName}</strong></p>
-                <p>Public directory: <strong>${publicPath}</strong></p>
-                <p>Please check your deployment configuration.</p>
-            </div>
-        </body>
-        </html>
-    `);
+    // Try to serve from file system
+    const filePath = path.join(publicPath, fileName);
+    if (fs.existsSync(filePath)) {
+        return res.sendFile(filePath);
+    }
+    
+    // Fallback HTML
+    const fallbackHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Hallows Estate</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+            .container { max-width: 600px; margin: 0 auto; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🏰 Hallows Estate</h1>
+            <p>Welcome to the Hallows Estate Management System</p>
+            <p><em>Requested: ${fileName}</em></p>
+            <hr>
+            <p><a href="/">Home</a> | <a href="/resident-login">Resident Login</a></p>
+        </div>
+    </body>
+    </html>
+    `;
+    res.setHeader('Content-Type', 'text/html');
+    res.send(fallbackHtml);
 };
 
 // Database Connection
@@ -146,6 +159,7 @@ app.get('/api/health', (req, res) => {
         publicPath: publicPath,
         publicExists: fs.existsSync(publicPath),
         filesInPublic: files,
+        cachedFiles: Object.keys(htmlCache),
         timestamp: new Date().toISOString()
     });
 });
@@ -155,14 +169,12 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
 
 // HTML Routes
+app.get('/', (req, res) => serveHtml(res, 'index.html'));
 app.get(['/resident-login', '/resident-login.html'], (req, res) => serveHtml(res, 'resident-login.html'));
 app.get(['/resident-portal', '/resident-portal.html'], (req, res) => serveHtml(res, 'resident-portal.html'));
 app.get(['/admin-portal', '/admin-portal.html'], (req, res) => serveHtml(res, 'admin-portal.html'));
 
-// Root route
-app.get('/', (req, res) => serveHtml(res, 'index.html'));
-
-// Fallback
+// Fallback for all other routes
 app.get('*', (req, res) => {
     if (req.originalUrl.startsWith('/api')) {
         return res.status(404).json({
@@ -174,7 +186,7 @@ app.get('*', (req, res) => {
     serveHtml(res, 'index.html');
 });
 
-// Error Handler
+// Global Error Handler
 app.use((err, req, res, next) => {
     console.error('Runtime Error:', err);
     res.status(err.status || 500).json({
@@ -183,12 +195,13 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start server
+// Start local server
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
         console.log(`🚀 Hallows Estate Server running on port ${PORT}`);
         console.log(`📁 Public directory: ${publicPath}`);
+        console.log(`📁 Files cached: ${Object.keys(htmlCache).join(', ')}`);
     });
 }
 
