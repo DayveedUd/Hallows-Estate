@@ -95,13 +95,13 @@ app.get('/api/health', (req, res) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
 
-// Explicit Static HTML Routes
-app.get('/resident-login(.html)?', (req, res) => safeSendFile(res, 'resident-login.html'));
-app.get('/resident-portal(.html)?', (req, res) => safeSendFile(res, 'resident-portal.html'));
-app.get('/admin-portal(.html)?', (req, res) => safeSendFile(res, 'admin-portal.html'));
+// Explicit Static HTML Routes (Express 5 Syntax)
+app.get(['/resident-login', '/resident-login.html'], (req, res) => safeSendFile(res, 'resident-login.html'));
+app.get(['/resident-portal', '/resident-portal.html'], (req, res) => safeSendFile(res, 'resident-portal.html'));
+app.get(['/admin-portal', '/admin-portal.html'], (req, res) => safeSendFile(res, 'admin-portal.html'));
 
 // Root / Fallback Landing Page Route
-app.get('*', (req, res) => {
+app.get('{*splat}', (req, res) => {
     if (req.originalUrl.startsWith('/api')) {
         return res.status(404).json({
             success: false,
