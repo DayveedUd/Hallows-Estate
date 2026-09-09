@@ -34,7 +34,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Safe Public Directory Resolution across Vercel environments
-const publicPath = path.resolve(process.cwd(), 'public');
+const publicPath = path.join(__dirname, 'public');
 app.use(express.static(publicPath));
 
 // Database Connection Helper for Serverless
@@ -71,14 +71,23 @@ app.use(async (req, res, next) => {
 
 // Helper to safely send static files without crashing
 const safeSendFile = (res, fileName) => {
-    const filePath = path.join(publicPath, fileName);
-    if (fs.existsSync(filePath)) {
-        return res.sendFile(filePath);
+    // Try multiple possible paths for Vercel compatibility
+    const possiblePaths = [
+        path.join(__dirname, 'public', fileName),
+        path.join(process.cwd(), 'public', fileName),
+        path.join('/var/task', 'public', fileName)
+    ];
+    
+    for (const filePath of possiblePaths) {
+        if (fs.existsSync(filePath)) {
+            return res.sendFile(filePath);
+        }
     }
+    
     return res.status(404).json({
         success: false,
         message: `Requested file (${fileName}) not found in runtime directory`,
-        publicPath
+        searchedPaths: possiblePaths
     });
 };
 
