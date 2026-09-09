@@ -64,7 +64,44 @@ if (mongoURI) {
     });
 } else {
     console.warn("⚠️ MONGO_URI is not defined in environment variables.");
-} 
+}
+
+// Explicit Page Routes for HTML files
+app.get('/index.html', (req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'));
+});
+
+app.get('/resident-login.html', (req, res) => {
+    res.sendFile(path.join(publicPath, 'resident-login.html'));
+});
+
+app.get('/resident-portal.html', (req, res) => {
+    res.sendFile(path.join(publicPath, 'resident-portal.html'));
+});
+
+app.get('/admin-portal.html', (req, res) => {
+    res.sendFile(path.join(publicPath, 'admin-portal.html'));
+});
+
+// Root Route - Serves Landing Page (index.html) first
+app.get('/', (req, res) => {
+    const indexPath = path.join(publicPath, 'index.html');
+    const loginPath = path.join(publicPath, 'resident-login.html');
+
+    if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+    } else if (fs.existsSync(loginPath)) {
+        return res.sendFile(loginPath);
+    } else {
+        return res.status(404).json({
+            success: false,
+            message: 'Landing page (index.html) and fallback pages not found in runtime directory',
+            resolvedPath: publicPath,
+            cwd: process.cwd(),
+            dirname: __dirname
+        });
+    }
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
