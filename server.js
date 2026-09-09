@@ -3,6 +3,7 @@
 // ================================================
 
 require('dotenv').config();
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -18,7 +19,7 @@ const app = express();
 
 // Security Middleware
 app.use(helmet({
-    contentSecurityPolicy: false // Allows rendering static assets inline
+    contentSecurityPolicy: false
 }));
 
 // CORS Configuration
@@ -32,11 +33,11 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Express Static Middleware for public folder
-const publicPath = path.resolve(__dirname, 'public');
+// Safe Public Directory Resolution across Vercel environments
+const publicPath = path.resolve(process.cwd(), 'public');
 app.use(express.static(publicPath));
 
-// MongoDB Connection Helper for Serverless Runtimes
+// Database Connection Helper for Serverless
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
 let dbConnected = false;
 
@@ -46,7 +47,7 @@ const connectDB = async () => {
         return;
     }
     if (!mongoURI) {
-        console.warn("⚠️ MONGO_URI is not defined in environment variables.");
+        console.warn("⚠️ MONGO_URI is missing in environment variables.");
         return;
     }
     try {
@@ -58,19 +59,35 @@ const connectDB = async () => {
     }
 };
 
-// Database Connection Middleware
+// Database Connection Middleware (Never blocks or crashes the app)
 app.use(async (req, res, next) => {
-    await connectDB();
+    try {
+        await connectDB();
+    } catch (err) {
+        console.error("Non-blocking DB error:", err.message);
+    }
     next();
 });
+
+// Helper to safely send static files without crashing
+const safeSendFile = (res, fileName) => {
+    const filePath = path.join(publicPath, fileName);
+    if (fs.existsSync(filePath)) {
+        return res.sendFile(filePath);
+    }
+    return res.status(404).json({
+        success: false,
+        message: `Requested file (${fileName}) not found in runtime directory`,
+        publicPath
+    });
+};
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'Server is running',
         dbConnected: Boolean(dbConnected),
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development'
+        timestamp: new Date().toISOString()
     });
 });
 
@@ -79,21 +96,12 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
 
 // Explicit Static HTML Routes
-app.get('/resident-login(.html)?', (req, res) => {
-    res.sendFile(path.join(publicPath, 'resident-login.html'));
-});
-
-app.get('/resident-portal(.html)?', (req, res) => {
-    res.sendFile(path.join(publicPath, 'resident-portal.html'));
-});
-
-app.get('/admin-portal(.html)?', (req, res) => {
-    res.sendFile(path.join(publicPath, 'admin-portal.html'));
-});
+app.get('/resident-login(.html)?', (req, res) => safeSendFile(res, 'resident-login.html'));
+app.get('/resident-portal(.html)?', (req, res) => safeSendFile(res, 'resident-portal.html'));
+app.get('/admin-portal(.html)?', (req, res) => safeSendFile(res, 'admin-portal.html'));
 
 // Root / Fallback Landing Page Route
-app.get('*', (req, res, next) => {
-    // If request starts with /api, pass to error handler instead of sending index.html
+app.get('*', (req, res) => {
     if (req.originalUrl.startsWith('/api')) {
         return res.status(404).json({
             success: false,
@@ -101,33 +109,23 @@ app.get('*', (req, res, next) => {
             path: req.originalUrl
         });
     }
-    res.sendFile(path.join(publicPath, 'index.html'));
+    safeSendFile(res, 'index.html');
 });
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-    console.error('Error:', err);
+    console.error('Runtime Error:', err);
     res.status(err.status || 500).json({
         success: false,
-        message: err.message || 'Internal server error',
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+        message: err.message || 'Internal server error'
     });
 });
 
 // Start local server during non-production runs
-const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== 'production') {
-    const server = app.listen(PORT, () => {
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
         console.log(`🚀 Hallows Estate Server running on port ${PORT}`);
-    });
-
-    server.on('error', (error) => {
-        if (error.code === 'EADDRINUSE') {
-            console.error(`❌ Port ${PORT} is already in use`);
-        } else {
-            console.error('Server error:', error);
-        }
-        process.exit(1);
     });
 }
 
