@@ -40,8 +40,9 @@ const resolveExistingHtml = (names) => {
   const roots = [...new Set(candidateRoots.filter(Boolean))];
   for (const root of roots) {
     for (const name of names) {
-      const full = path.join(root, name);
-      if (fs.existsSync(full)) return full;
+      const direct = path.join(root, name);
+      if (fs.existsSync(direct)) return direct;
+
       const nested = path.join(root, 'public', name);
       if (fs.existsSync(nested)) return nested;
     }
@@ -53,29 +54,25 @@ const resolvePublicRoot = () => {
   const roots = [...new Set(candidateRoots.filter(Boolean))];
 
   for (const root of roots) {
-    if (fs.existsSync(root)) {
-      const htmlFiles = [
-        'index.html',
-        'resident-login.html',
-        'resident-portal.html',
-        'admin-portal.html'
-      ];
+    if (!fs.existsSync(root)) continue;
 
-      const hasHtml = htmlFiles.some((file) => {
-        const direct = path.join(root, file);
-        const nested = path.join(root, 'public', file);
-        return fs.existsSync(direct) || fs.existsSync(nested);
-      });
+    const htmlFiles = [
+      'index.html',
+      'resident-login.html',
+      'resident-portal.html',
+      'admin-portal.html'
+    ];
 
-      if (hasHtml) {
-        return root;
-      }
+    const hasHtml = htmlFiles.some((file) => {
+      const direct = path.join(root, file);
+      const nested = path.join(root, 'public', file);
+      return fs.existsSync(direct) || fs.existsSync(nested);
+    });
 
-      const publicDir = path.join(root, 'public');
-      if (fs.existsSync(publicDir)) {
-        return publicDir;
-      }
-    }
+    if (hasHtml) return root;
+
+    const publicDir = path.join(root, 'public');
+    if (fs.existsSync(publicDir)) return publicDir;
   }
 
   return path.join(process.cwd(), 'public');
@@ -121,7 +118,7 @@ const connectMongo = async () => {
 
 connectMongo();
 
-// Explicit page routes
+// Page routes
 app.get('/index.html', (req, res) => {
   sendHtmlFile(res, ['index.html'], 'index.html not found in runtime directory');
 });
@@ -140,19 +137,14 @@ app.get('/admin-portal.html', (req, res) => {
 
 // Root route
 app.get('/', (req, res) => {
-  const foundFile = resolveExistingHtml(['index.html', 'resident-login.html']);
+  const indexHtml = resolveExistingHtml(['index.html']);
 
-  if (foundFile) {
-    return res.sendFile(foundFile);
+  if (indexHtml) {
+    return res.sendFile(indexHtml);
   }
 
-  return res.status(404).json({
-    success: false,
-    message: 'Landing page (index.html) and fallback pages not found in runtime directory',
-    resolvedPath: publicPath,
-    cwd: process.cwd(),
-    dirname: __dirname
-  });
+  // In Vercel, static pages are served by the public folder and should not hit the function.
+  return res.redirect('/index.html');
 });
 
 // Health check
