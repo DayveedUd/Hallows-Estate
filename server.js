@@ -12,6 +12,7 @@ const residentRoutes = require('./Backend/routes/residentRoutes');
 
 const app = express();
 const isVercelRuntime = Boolean(process.env.VERCEL);
+const publicDir = path.resolve(__dirname, 'public');
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -27,9 +28,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Keep only API behavior here.
-// Do not try to serve the HTML pages from the serverless function at runtime.
-// Vercel static assets are handled by the build config above.
+// Serve frontend static assets. This works both locally and when deployed to Vercel.
+app.use(express.static(publicDir));
+
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
 const connectMongo = async () => {
@@ -62,21 +63,15 @@ app.get('/api/health', (req, res) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
 
-// This is the root request for the app.
-// On Vercel, the actual HTML page is served by the static asset config.
+// Serve the landing page if the file exists. Otherwise, return a simple fallback.
 app.get('/', (req, res) => {
-  const fallback = path.join(__dirname, 'public', 'index.html');
+  const indexFile = path.join(publicDir, 'index.html');
 
-  if (fs.existsSync(fallback)) {
-    return res.sendFile(fallback);
+  if (fs.existsSync(indexFile)) {
+    return res.sendFile(indexFile);
   }
 
-  return res.status(404).json({
-    success: false,
-    message: 'index.html not found in runtime directory',
-    cwd: process.cwd(),
-    dirname: __dirname
-  });
+  return res.type('html').send(`<!DOCTYPE html><html><head><title>Hallows Estate</title></head><body><h1>Hallows Estate</h1><p>The frontend bundle is not available in this runtime.</p></body></html>`);
 });
 
 // 404 handler
