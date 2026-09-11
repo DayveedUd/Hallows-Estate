@@ -27,55 +27,58 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const candidateRoots = [
-  process.cwd(),
-  __dirname,
-  path.join(process.cwd(), 'public'),
-  path.join(__dirname, 'public'),
-  path.join(process.cwd(), 'dist'),
-  path.join(__dirname, 'dist')
-];
+// Determine public directory with priority for Vercel environment
+const resolvePublicRoot = () => {
+  // In Vercel: process.cwd() = /var/task, __dirname = /var/task
+  // Files are in /var/task/public due to includeFiles config
+  const isVercelEnv = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
+  
+  const candidatePaths = [
+    // Try direct public folder first
+    path.join(__dirname, 'public'),
+    path.join(process.cwd(), 'public'),
+    // Fallback to current directory
+    path.join(__dirname),
+    process.cwd()
+  ];
+
+  for (const dir of candidatePaths) {
+    try {
+      if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
+        // Check if this directory or its public subdirectory has HTML files
+        const checkDir = fs.existsSync(path.join(dir, 'public')) && 
+                         fs.existsSync(path.join(dir, 'public', 'index.html')) 
+                         ? path.join(dir, 'public') 
+                         : dir;
+        
+        if (fs.existsSync(path.join(checkDir, 'index.html'))) {
+          return checkDir;
+        }
+      }
+    } catch (e) {
+      // Continue to next candidate if there's an error
+      continue;
+    }
+  }
+
+  // Final fallback
+  return path.join(process.cwd(), 'public');
+};
 
 const resolveExistingHtml = (names) => {
-  const roots = [...new Set(candidateRoots.filter(Boolean))];
-  for (const root of roots) {
-    for (const name of names) {
-      const direct = path.join(root, name);
-      if (fs.existsSync(direct)) return direct;
-
-      const nested = path.join(root, 'public', name);
-      if (fs.existsSync(nested)) return nested;
+  const publicPath = resolvePublicRoot();
+  
+  for (const name of names) {
+    try {
+      const filePath = path.join(publicPath, name);
+      if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        return filePath;
+      }
+    } catch (e) {
+      continue;
     }
   }
   return null;
-};
-
-const resolvePublicRoot = () => {
-  const roots = [...new Set(candidateRoots.filter(Boolean))];
-
-  for (const root of roots) {
-    if (!fs.existsSync(root)) continue;
-
-    const htmlFiles = [
-      'index.html',
-      'resident-login.html',
-      'resident-portal.html',
-      'admin-portal.html'
-    ];
-
-    const hasHtml = htmlFiles.some((file) => {
-      const direct = path.join(root, file);
-      const nested = path.join(root, 'public', file);
-      return fs.existsSync(direct) || fs.existsSync(nested);
-    });
-
-    if (hasHtml) return root;
-
-    const publicDir = path.join(root, 'public');
-    if (fs.existsSync(publicDir)) return publicDir;
-  }
-
-  return path.join(process.cwd(), 'public');
 };
 
 const publicPath = resolvePublicRoot();
@@ -85,15 +88,38 @@ const sendHtmlFile = (res, fileNames, fallbackMessage) => {
   const foundFile = resolveExistingHtml(fileNames);
 
   if (foundFile) {
-    return res.sendFile(foundFile);
+    try {
+      return res.sendFile(foundFile);
+    } catch (error) {
+      console.error(`Error sending file ${foundFile}:`, error.message);
+    }
   }
 
+  // Fallback: Try sending from public directory directly
+  const publicPath = resolvePublicRoot();
+  for (const fileName of fileNames) {
+    const fallbackPath = path.join(publicPath, fileName);
+    try {
+      if (fs.existsSync(fallbackPath)) {
+        console.log(`Serving fallback: ${fallbackPath}`);
+        return res.sendFile(fallbackPath);
+      }
+    } catch (error) {
+      continue;
+    }
+  }
+
+  // Last resort: return error
+  console.error(`Could not find HTML file: ${fileNames.join(', ')}`);
+  console.error(`Searched in: ${publicPath}`);
+  
   return res.status(404).json({
     success: false,
     message: fallbackMessage,
     resolvedPath: publicPath,
     cwd: process.cwd(),
-    dirname: __dirname
+    dirname: __dirname,
+    searchedFiles: fileNames
   });
 };
 
