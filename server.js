@@ -135,7 +135,6 @@ app.get('/admin-portal.html', (req, res) => {
   sendHtmlFile(res, ['admin-portal.html'], 'admin-portal.html not found in runtime directory');
 });
 
-// Root route
 app.get('/', (req, res) => {
   const indexHtml = resolveExistingHtml(['index.html']);
 
@@ -143,7 +142,6 @@ app.get('/', (req, res) => {
     return res.sendFile(indexHtml);
   }
 
-  // In Vercel, static pages are served by the public folder and should not hit the function.
   return res.redirect('/index.html');
 });
 
