@@ -27,103 +27,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Determine public directory with priority for Vercel environment
-const resolvePublicRoot = () => {
-  // In Vercel: process.cwd() = /var/task, __dirname = /var/task
-  // Files are in /var/task/public due to includeFiles config
-  const isVercelEnv = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
-  
-  const candidatePaths = [
-    // Try direct public folder first
-    path.join(__dirname, 'public'),
-    path.join(process.cwd(), 'public'),
-    // Fallback to current directory
-    path.join(__dirname),
-    process.cwd()
-  ];
-
-  for (const dir of candidatePaths) {
-    try {
-      if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
-        // Check if this directory or its public subdirectory has HTML files
-        const checkDir = fs.existsSync(path.join(dir, 'public')) && 
-                         fs.existsSync(path.join(dir, 'public', 'index.html')) 
-                         ? path.join(dir, 'public') 
-                         : dir;
-        
-        if (fs.existsSync(path.join(checkDir, 'index.html'))) {
-          return checkDir;
-        }
-      }
-    } catch (e) {
-      // Continue to next candidate if there's an error
-      continue;
-    }
-  }
-
-  // Final fallback
-  return path.join(process.cwd(), 'public');
-};
-
-const resolveExistingHtml = (names) => {
-  const publicPath = resolvePublicRoot();
-  
-  for (const name of names) {
-    try {
-      const filePath = path.join(publicPath, name);
-      if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-        return filePath;
-      }
-    } catch (e) {
-      continue;
-    }
-  }
-  return null;
-};
-
-const publicPath = resolvePublicRoot();
-app.use(express.static(publicPath));
-
-const sendHtmlFile = (res, fileNames, fallbackMessage) => {
-  const foundFile = resolveExistingHtml(fileNames);
-
-  if (foundFile) {
-    try {
-      return res.sendFile(foundFile);
-    } catch (error) {
-      console.error(`Error sending file ${foundFile}:`, error.message);
-    }
-  }
-
-  // Fallback: Try sending from public directory directly
-  const publicPath = resolvePublicRoot();
-  for (const fileName of fileNames) {
-    const fallbackPath = path.join(publicPath, fileName);
-    try {
-      if (fs.existsSync(fallbackPath)) {
-        console.log(`Serving fallback: ${fallbackPath}`);
-        return res.sendFile(fallbackPath);
-      }
-    } catch (error) {
-      continue;
-    }
-  }
-
-  // Last resort: return error
-  console.error(`Could not find HTML file: ${fileNames.join(', ')}`);
-  console.error(`Searched in: ${publicPath}`);
-  
-  return res.status(404).json({
-    success: false,
-    message: fallbackMessage,
-    resolvedPath: publicPath,
-    cwd: process.cwd(),
-    dirname: __dirname,
-    searchedFiles: fileNames
-  });
-};
-
-// MongoDB
+// Keep only API behavior here.
+// Do not try to serve the HTML pages from the serverless function at runtime.
+// Vercel static assets are handled by the build config above.
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
 const connectMongo = async () => {
@@ -144,34 +50,7 @@ const connectMongo = async () => {
 
 connectMongo();
 
-// Page routes
-app.get('/index.html', (req, res) => {
-  sendHtmlFile(res, ['index.html'], 'index.html not found in runtime directory');
-});
-
-app.get('/resident-login.html', (req, res) => {
-  sendHtmlFile(res, ['resident-login.html'], 'resident-login.html not found in runtime directory');
-});
-
-app.get('/resident-portal.html', (req, res) => {
-  sendHtmlFile(res, ['resident-portal.html'], 'resident-portal.html not found in runtime directory');
-});
-
-app.get('/admin-portal.html', (req, res) => {
-  sendHtmlFile(res, ['admin-portal.html'], 'admin-portal.html not found in runtime directory');
-});
-
-app.get('/', (req, res) => {
-  const indexHtml = resolveExistingHtml(['index.html']);
-
-  if (indexHtml) {
-    return res.sendFile(indexHtml);
-  }
-
-  return res.redirect('/index.html');
-});
-
-// Health check
+// API endpoints only
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'Server is running',
@@ -180,9 +59,25 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// API routes
 app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
+
+// This is the root request for the app.
+// On Vercel, the actual HTML page is served by the static asset config.
+app.get('/', (req, res) => {
+  const fallback = path.join(__dirname, 'public', 'index.html');
+
+  if (fs.existsSync(fallback)) {
+    return res.sendFile(fallback);
+  }
+
+  return res.status(404).json({
+    success: false,
+    message: 'index.html not found in runtime directory',
+    cwd: process.cwd(),
+    dirname: __dirname
+  });
+});
 
 // 404 handler
 app.use((req, res) => {
