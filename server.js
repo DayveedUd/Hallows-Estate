@@ -1,4 +1,3 @@
-// ...existing code...
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +11,18 @@ const residentRoutes = require('./Backend/routes/residentRoutes');
 
 const app = express();
 const isVercelRuntime = Boolean(process.env.VERCEL);
-const publicDir = path.resolve(__dirname, 'public');
+
+// Resolve public directory dynamically across Vercel environments
+const getPublicDir = () => {
+  const cwdPublic = path.join(process.cwd(), 'public');
+  const dirPublic = path.join(__dirname, 'public');
+
+  if (fs.existsSync(cwdPublic)) return cwdPublic;
+  if (fs.existsSync(dirPublic)) return dirPublic;
+  return dirPublic; // Fallback
+};
+
+const publicDir = getPublicDir();
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -28,7 +38,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve frontend static assets. This works both locally and when deployed to Vercel.
+// Serve frontend static assets dynamically
 app.use(express.static(publicDir));
 
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
@@ -51,7 +61,7 @@ const connectMongo = async () => {
 
 connectMongo();
 
-// API endpoints only
+// API endpoints
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'Server is running',
@@ -63,7 +73,20 @@ app.get('/api/health', (req, res) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
 
-// Serve the landing page if the file exists. Otherwise, return a simple fallback.
+// Explicit page routes
+app.get('/resident-login', (req, res) => {
+  res.sendFile(path.join(publicDir, 'resident-login.html'));
+});
+
+app.get('/resident-portal', (req, res) => {
+  res.sendFile(path.join(publicDir, 'resident-portal.html'));
+});
+
+app.get('/admin-portal', (req, res) => {
+  res.sendFile(path.join(publicDir, 'admin-portal.html'));
+});
+
+// Root route (Serves landing page)
 app.get('/', (req, res) => {
   const indexFile = path.join(publicDir, 'index.html');
 
