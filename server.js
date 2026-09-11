@@ -11,19 +11,16 @@ const mongoose = require('mongoose');
 const adminRoutes = require('./Backend/routes/adminRoutes');
 const residentRoutes = require('./Backend/routes/residentRoutes');
 
-// Initialize Express app
 const app = express();
 const isVercelRuntime = Boolean(process.env.VERCEL);
 
 // Middleware
 app.use(helmet({
-    contentSecurityPolicy: false // Allows rendering static assets without strict CSP blocking
+    contentSecurityPolicy: false
 }));
 
-// CORS Configuration
 app.use(cors({
     origin: (origin, callback) => {
-        // Allows direct browser loads, local dev, or production deployments
         if (!origin || process.env.NODE_ENV === 'production' || origin.includes('localhost') || origin.includes('127.0.0.1')) {
             return callback(null, true);
         }
@@ -35,18 +32,76 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Resolve public directory dynamically across Vercel environments
-const getPublicPath = () => {
-    const cwdPath = path.join(process.cwd(), 'public');
-    const dirPath = path.join(__dirname, 'public');
+const candidates = [
+    process.cwd(),
+    __dirname,
+    path.join(process.cwd(), 'public'),
+    path.join(__dirname, 'public'),
+    path.join(process.cwd(), 'dist'),
+    path.join(__dirname, 'dist')
+];
 
-    if (fs.existsSync(cwdPath)) return cwdPath;
-    if (fs.existsSync(dirPath)) return dirPath;
-    return cwdPath; // Fallback
+const resolvePublicPath = () => {
+    const uniqueCandidates = [...new Set(candidates.filter(Boolean))];
+
+    for (const candidate of uniqueCandidates) {
+        if (!fs.existsSync(candidate)) continue;
+
+        const htmlFiles = [
+            'index.html',
+            'resident-login.html',
+            'resident-portal.html',
+            'admin-portal.html'
+        ];
+
+        const hasHtml = htmlFiles.some((file) => fs.existsSync(path.join(candidate, file)));
+        if (hasHtml) return candidate;
+
+        const publicDir = path.join(candidate, 'public');
+        if (fs.existsSync(publicDir)) return publicDir;
+    }
+
+    return path.join(process.cwd(), 'public');
 };
 
-const publicPath = getPublicPath();
+const publicPath = resolvePublicPath();
 app.use(express.static(publicPath));
+
+const findExistingFile = (fileNames) => {
+    const searchRoots = [
+        process.cwd(),
+        __dirname,
+        path.join(process.cwd(), 'public'),
+        path.join(__dirname, 'public'),
+        path.join(process.cwd(), 'dist'),
+        path.join(__dirname, 'dist')
+    ];
+
+    for (const root of searchRoots) {
+        for (const fileName of fileNames) {
+            const filePath = path.join(root, fileName);
+            if (fs.existsSync(filePath)) return filePath;
+        }
+    }
+
+    return null;
+};
+
+const sendHtmlFile = (res, fileNames, fallbackMessage) => {
+    const foundFile = findExistingFile(fileNames);
+
+    if (foundFile) {
+        return res.sendFile(foundFile);
+    }
+
+    return res.status(404).json({
+        success: false,
+        message: fallbackMessage,
+        resolvedPath: publicPath,
+        cwd: process.cwd(),
+        dirname: __dirname
+    });
+};
 
 // MongoDB connection
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
@@ -70,41 +125,38 @@ const connectMongo = async () => {
 
 connectMongo();
 
-// Explicit Page Routes for HTML files
+// Explicit page routes
 app.get('/index.html', (req, res) => {
-    res.sendFile(path.join(publicPath, 'index.html'));
+    sendHtmlFile(res, ['index.html'], 'index.html not found in runtime directory');
 });
 
 app.get('/resident-login.html', (req, res) => {
-    res.sendFile(path.join(publicPath, 'resident-login.html'));
+    sendHtmlFile(res, ['resident-login.html'], 'resident-login.html not found in runtime directory');
 });
 
 app.get('/resident-portal.html', (req, res) => {
-    res.sendFile(path.join(publicPath, 'resident-portal.html'));
+    sendHtmlFile(res, ['resident-portal.html'], 'resident-portal.html not found in runtime directory');
 });
 
 app.get('/admin-portal.html', (req, res) => {
-    res.sendFile(path.join(publicPath, 'admin-portal.html'));
+    sendHtmlFile(res, ['admin-portal.html'], 'admin-portal.html not found in runtime directory');
 });
 
-// Root Route - Serves Landing Page (index.html) first
+// Root route
 app.get('/', (req, res) => {
-    const indexPath = path.join(publicPath, 'index.html');
-    const loginPath = path.join(publicPath, 'resident-login.html');
+    const foundFile = findExistingFile(['index.html', 'resident-login.html']);
 
-    if (fs.existsSync(indexPath)) {
-        return res.sendFile(indexPath);
-    } else if (fs.existsSync(loginPath)) {
-        return res.sendFile(loginPath);
-    } else {
-        return res.status(404).json({
-            success: false,
-            message: 'Landing page (index.html) and fallback pages not found in runtime directory',
-            resolvedPath: publicPath,
-            cwd: process.cwd(),
-            dirname: __dirname
-        });
+    if (foundFile) {
+        return res.sendFile(foundFile);
     }
+
+    return res.status(404).json({
+        success: false,
+        message: 'Landing page (index.html) and fallback pages not found in runtime directory',
+        resolvedPath: publicPath,
+        cwd: process.cwd(),
+        dirname: __dirname
+    });
 });
 
 // Health check endpoint
@@ -120,7 +172,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
 
-// 404 handler for unmatched routes
+// 404 handler
 app.use((req, res) => {
     res.status(404).json({
         success: false,
@@ -140,7 +192,7 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start server locally only; Vercel exports the app as a serverless module
+// Start local server only if not in Vercel
 const PORT = process.env.PORT || 5000;
 const shouldStartLocalServer = !isVercelRuntime && process.env.NODE_ENV !== 'production';
 
