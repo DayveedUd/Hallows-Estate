@@ -52,7 +52,7 @@ loginForm.addEventListener('submit', async function(e) {
     
     try {
         // Send login request to backend
-        const response = await fetch('http://localhost:5000/api/resident/login', {
+        const response = await fetch('/api/resident/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

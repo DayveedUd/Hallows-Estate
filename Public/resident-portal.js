@@ -114,7 +114,7 @@ function filterAnnouncements(category) {
 // ============================================
 async function fetchPaymentDetails(token) {
     try {
-        const response = await fetch('http://localhost:5000/api/resident/payment-details', {
+        const response = await fetch('/api/resident/payment-details', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) throw new Error('Failed to load dues details');
@@ -143,7 +143,7 @@ function updateDuesUI(data) {
 
 async function fetchAnnouncements(token) {
     try {
-        const response = await fetch('http://localhost:5000/api/resident/announcements', {
+        const response = await fetch('/api/resident/announcements', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) return;

@@ -119,7 +119,7 @@ registrationForm.addEventListener('submit', async function(e) {
     
     try {
         // Send registration request to backend
-        const response = await fetch('http://localhost:5000/api/resident/register', {
+        const response = await fetch('/api/resident/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

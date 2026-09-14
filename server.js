@@ -1,5 +1,4 @@
 require('dotenv').config();
-const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -11,18 +10,6 @@ const residentRoutes = require('./Backend/routes/residentRoutes');
 
 const app = express();
 const isVercelRuntime = Boolean(process.env.VERCEL);
-
-// Resolve public directory dynamically across Vercel environments
-const getPublicDir = () => {
-  const cwdPublic = path.join(process.cwd(), 'public');
-  const dirPublic = path.join(__dirname, 'public');
-
-  if (fs.existsSync(cwdPublic)) return cwdPublic;
-  if (fs.existsSync(dirPublic)) return dirPublic;
-  return dirPublic; // Fallback
-};
-
-const publicDir = getPublicDir();
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -38,9 +25,13 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve frontend static assets dynamically
-app.use(express.static(publicDir));
+// Static frontend — with includeFiles bundling "public/**" alongside this
+// file, __dirname reliably points at the right folder both locally and
+// inside the Vercel function, now that the casing matches on disk.
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
 
+// MongoDB
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
 const connectMongo = async () => {
@@ -61,7 +52,7 @@ const connectMongo = async () => {
 
 connectMongo();
 
-// API endpoints
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'Server is running',
@@ -70,34 +61,20 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// API routes
 app.use('/api/admin', adminRoutes);
 app.use('/api/resident', residentRoutes);
 
-// Explicit page routes
-app.get('/resident-login', (req, res) => {
-  res.sendFile(path.join(publicDir, 'resident-login.html'));
+// Fallback: send index.html for any other non-API GET request
+// (covers "/", "/resident-login", etc. with clean URLs).
+// Written as a plain middleware (no path string) to avoid Express 5's
+// stricter path-to-regexp wildcard syntax (bare '*' now throws).
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || req.path.startsWith('/api/')) return next();
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-app.get('/resident-portal', (req, res) => {
-  res.sendFile(path.join(publicDir, 'resident-portal.html'));
-});
-
-app.get('/admin-portal', (req, res) => {
-  res.sendFile(path.join(publicDir, 'admin-portal.html'));
-});
-
-// Root route (Serves landing page)
-app.get('/', (req, res) => {
-  const indexFile = path.join(publicDir, 'index.html');
-
-  if (fs.existsSync(indexFile)) {
-    return res.sendFile(indexFile);
-  }
-
-  return res.type('html').send(`<!DOCTYPE html><html><head><title>Hallows Estate</title></head><body><h1>Hallows Estate</h1><p>The frontend bundle is not available in this runtime.</p></body></html>`);
-});
-
-// 404 handler
+// 404 handler (API routes that don't match anything above)
 app.use((req, res) => {
   res.status(404).json({
     success: false,
