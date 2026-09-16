@@ -48,6 +48,14 @@ async function loadResidentData() {
     // Load API Data
     await fetchPaymentDetails(token);
     await fetchAnnouncements(token);
+    await fetchResidentProfile(token);
+    await fetchResidentTickets(token);
+
+    window.residentRefreshTimer = setInterval(() => {
+        fetchAnnouncements(token);
+        fetchResidentTickets(token);
+        fetchResidentProfile(token);
+    }, 20000);
 }
 
 // ============================================
@@ -76,7 +84,6 @@ function switchTab(sectionId) {
         targetTab.classList.add('active');
     }
 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // Alias for section switching compatibility
@@ -156,15 +163,75 @@ async function fetchAnnouncements(token) {
     }
 }
 
+async function fetchResidentProfile(token) {
+    try {
+        const response = await fetch('/api/resident/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return;
+        const res = await response.json();
+        const resident = res.data;
+        if (!resident) return;
+
+        const accountStatus = document.getElementById('accountStatus');
+        if (accountStatus) {
+            const accountStatusValue = resident.accountStatus || 'active';
+            accountStatus.textContent = accountStatusValue === 'active' ? 'Account Active' : `Account ${accountStatusValue}`;
+        }
+        if (resident.phone) localStorage.setItem('residentPhone', resident.phone);
+    } catch (err) {
+        console.warn('Profile refresh failed:', err.message);
+    }
+}
+
+async function fetchResidentTickets(token) {
+    try {
+        const response = await fetch('/api/resident/tickets', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return;
+        const res = await response.json();
+        if (res.success) renderResidentTickets(res.data || []);
+    } catch (err) {
+        console.warn('Tickets unavailable:', err.message);
+    }
+}
+
+function renderResidentTickets(tickets) {
+    const container = document.getElementById('maintenanceList');
+    if (!container) return;
+    if (!tickets.length) {
+        container.innerHTML = '<div class="card"><p>No maintenance requests yet.</p></div>';
+        return;
+    }
+
+    container.innerHTML = tickets.map(ticket => `
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <div class="card-title" style="font-weight: 600; color: var(--navy);">${escapeHTML(ticket.category)}</div>
+                <span class="status-badge active">${escapeHTML(ticket.status.replace('_', ' '))}</span>
+            </div>
+            <p style="color: var(--dark-grey); font-size: 0.95rem; margin-bottom: 0.75rem;">${escapeHTML(ticket.description)}</p>
+            <div style="font-size: 0.8rem; color: #64748b;">Reported on: ${new Date(ticket.createdAt).toLocaleDateString()} | Priority: ${escapeHTML(ticket.priority)}</div>
+        </div>
+    `).join('');
+}
+
+function escapeHTML(value = '') {
+    return String(value).replace(/[&<>'"]/g, tag => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    }[tag]));
+}
+
 function renderAnnouncements(list) {
     const container = document.getElementById('announcementsList');
     if (!container) return;
 
     container.innerHTML = list.map(item => `
-        <div class="announcement-item" data-category="${item.category?.toLowerCase() || 'estate'}">
-            <span class="announcement-category">${item.category || 'Estate Management'}</span>
-            <h3 class="announcement-title">${item.title}</h3>
-            <p>${item.content || item.description}</p>
+        <div class="announcement-item" data-category="${escapeHTML(item.category?.toLowerCase() || 'estate')}">
+            <span class="announcement-category">${escapeHTML(item.category || 'Estate Management')}</span>
+            <h3 class="announcement-title">${escapeHTML(item.title)}</h3>
+            <p>${escapeHTML(item.content || item.description)}</p>
             <p class="announcement-date">
                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg> 
                 Posted on ${new Date(item.createdAt || item.date).toLocaleDateString()}
@@ -258,7 +325,7 @@ function processPayment() {
 }
 
 // Submit Maintenance Ticket Action
-function submitMaintenance() {
+async function submitMaintenance() {
     const categoryEl = document.getElementById('maintenanceCategory');
     const descEl = document.getElementById('maintenanceDesc');
 
@@ -270,34 +337,28 @@ function submitMaintenance() {
         return;
     }
 
-    // Dynamic UI Feedback: Prepend ticket card to maintenance list
-    const maintenanceList = document.getElementById('maintenanceList');
-    if (maintenanceList) {
-        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        const ticketHTML = `
-            <div class="card" style="margin-bottom: 1rem;">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                    <div class="card-title" style="font-weight: 600; color: var(--navy);">${category}</div>
-                    <span class="status-badge active" style="background: #e0f2fe; color: #0369a1; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Submitted</span>
-                </div>
-                <p style="color: var(--dark-grey); font-size: 0.95rem; margin-bottom: 0.75rem;">${desc}</p>
-                <div style="font-size: 0.8rem; color: #64748b;">Reported on: ${today}</div>
-            </div>
-        `;
+    const token = localStorage.getItem('residentToken');
+    try {
+        const response = await fetch('/api/resident/tickets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+                category,
+                description: desc,
+                priority: document.querySelector('input[name="priority"]:checked')?.value || 'normal'
+            })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Unable to submit issue');
 
-        if (maintenanceList.innerHTML.includes('No active maintenance')) {
-            maintenanceList.innerHTML = ticketHTML;
-        } else {
-            maintenanceList.insertAdjacentHTML('afterbegin', ticketHTML);
-        }
+        categoryEl.value = '';
+        descEl.value = '';
+        closeModal('maintenanceModal');
+        await fetchResidentTickets(token);
+        showToast('Maintenance issue reported successfully.');
+    } catch (error) {
+        showToast(error.message);
     }
-
-    // Reset Form & Close Modal
-    categoryEl.value = '';
-    descEl.value = '';
-
-    closeModal('maintenanceModal');
-    showToast('✓ Maintenance issue reported successfully!');
 }
 
 // Confirm Facility Booking Action

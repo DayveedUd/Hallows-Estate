@@ -23,4 +23,8 @@ router.get('/payment-details', verifyResidentToken, residentController.getPaymen
 
 router.get('/announcements', verifyResidentToken, residentController.getAnnouncements);
 
+router.get('/tickets', verifyResidentToken, residentController.getTickets);
+
+router.post('/tickets', verifyResidentToken, residentController.createTicket);
+
 module.exports = router;

@@ -18,7 +18,7 @@ const verifyAdminToken = async (req, res, next) => {
             });
         }
         
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'hallows-admin-secret-key');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'hallows-estate-secret-key');
         
         // Get admin from database
         const admin = await Admin.findById(decoded.id);
@@ -68,7 +68,7 @@ const verifyResidentToken = async (req, res, next) => {
             });
         }
         
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'hallows-resident-secret-key');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'hallows-estate-secret-key');
         
         // Get resident from database
         const resident = await Resident.findById(decoded.id);
@@ -80,7 +80,7 @@ const verifyResidentToken = async (req, res, next) => {
             });
         }
         
-        if (!resident.isActive) {
+        if ((resident.accountStatus && resident.accountStatus !== 'active') || !resident.isActive) {
             return res.status(403).json({
                 success: false,
                 message: 'Resident account is inactive'

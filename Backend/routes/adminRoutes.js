@@ -21,6 +21,16 @@ router.get('/residents/:residentId', verifyAdminToken, checkPermission('viewResi
 
 router.put('/residents/:residentId', verifyAdminToken, checkPermission('editResidents'), adminController.updateResident);
 
+router.patch('/residents/:residentId/status', verifyAdminToken, checkPermission('editResidents'), adminController.updateResidentStatus);
+
 router.post('/residents/:residentId/payment', verifyAdminToken, checkPermission('recordPayments'), adminController.recordPayment);
+
+router.get('/tickets', verifyAdminToken, checkPermission('viewComplaints'), adminController.getTickets);
+
+router.patch('/tickets/:ticketId/status', verifyAdminToken, checkPermission('resolveComplaints'), adminController.updateTicketStatus);
+
+router.get('/announcements', verifyAdminToken, checkPermission('postAnnouncements'), adminController.getAnnouncements);
+
+router.post('/announcements', verifyAdminToken, checkPermission('postAnnouncements'), adminController.createAnnouncement);
 
 module.exports = router;

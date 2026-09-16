@@ -53,7 +53,7 @@ document.addEventListener('click', function(event) {
 });
 
 // --- ANNOUNCEMENT MANAGEMENT ---
-function postAnnouncement() {
+async function postAnnouncement() {
     const category = document.getElementById('newAnnouncementCategory')?.value;
     const title = document.getElementById('newAnnouncementTitle')?.value;
     const body = document.getElementById('newAnnouncementBody')?.value;
@@ -63,26 +63,151 @@ function postAnnouncement() {
         return;
     }
 
-    const announcementsList = document.getElementById('adminAnnouncementsList');
-    if (announcementsList) {
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.style.marginBottom = '1rem';
-        card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-                <h3 style="margin: 0;">${escapeHTML(title)}</h3>
-                <span class="status-badge active">${escapeHTML(category)}</span>
-            </div>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Posted: Just now</p>
-            <p>${escapeHTML(body)}</p>
-        `;
-        announcementsList.prepend(card);
+    try {
+        const response = await adminFetch('/api/admin/announcements', {
+            method: 'POST',
+            body: JSON.stringify({ title, content: body, category })
+        });
+        if (!response.ok || !response.data?.success) throw new Error(response.data?.message || 'Unable to publish announcement');
+        document.getElementById('newAnnouncementTitle').value = '';
+        document.getElementById('newAnnouncementBody').value = '';
+        closeModal('announcementModal');
+        await loadAdminAnnouncements();
+        showAdminToast('Announcement published.');
+    } catch (error) {
+        showAdminToast(error.message);
     }
+}
 
-    // Clear inputs and close modal
-    document.getElementById('newAnnouncementTitle').value = '';
-    document.getElementById('newAnnouncementBody').value = '';
-    closeModal('announcementModal');
+async function adminFetch(url, options = {}) {
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+            ...(options.headers || {})
+        }
+    });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, data };
+}
+
+async function loadAdminData() {
+    await Promise.all([
+        loadAdminStats(),
+        loadAdminResidents(),
+        loadAdminTickets(),
+        loadAdminAnnouncements()
+    ]);
+}
+
+async function loadAdminStats() {
+    const response = await adminFetch('/api/admin/dashboard-stats');
+    if (!response.ok || !response.data.success) return;
+    const stats = response.data.data;
+    document.getElementById('metricTotalResidents').textContent = stats.totalResidents;
+    document.getElementById('metricPendingApprovals').textContent = stats.pendingApprovals;
+    document.getElementById('metricOpenComplaints').textContent = stats.openComplaints;
+    document.getElementById('metricDuesCollected').textContent = `₦${Number(stats.duesCollected || 0).toLocaleString()}`;
+}
+
+async function loadAdminResidents() {
+    const response = await adminFetch('/api/admin/residents');
+    if (!response.ok || !response.data.success) return;
+    const body = document.getElementById('residentTableBody');
+    if (!body) return;
+    body.innerHTML = response.data.data.map(resident => `
+        <tr class="resident-row" data-status="${escapeHTML(resident.status.toLowerCase())}" data-account-status="${escapeHTML(resident.accountStatus)}">
+            <td style="padding: 1rem;">${escapeHTML([resident.firstName, resident.middleName, resident.lastName].filter(Boolean).join(' '))}</td>
+            <td style="padding: 1rem;">${escapeHTML(resident.username)}</td>
+            <td style="padding: 1rem;">${escapeHTML(resident.status)}</td>
+            <td style="padding: 1rem;">${escapeHTML(resident.propertyType)}</td>
+            <td style="padding: 1rem;">${escapeHTML(resident.email)}<br>${escapeHTML(resident.phone)}</td>
+            <td style="padding: 1rem;"><span class="status-badge active">${escapeHTML(resident.accountStatus)}</span></td>
+            <td style="padding: 1rem; text-align: center;">
+                ${resident.accountStatus === 'pending' ? `<button class="btn btn-primary resident-status-btn" data-id="${resident._id}" data-status="active">Approve</button>` : ''}
+                ${resident.accountStatus === 'active' ? `<button class="btn btn-secondary resident-status-btn" data-id="${resident._id}" data-status="suspended">Suspend</button>` : ''}
+            </td>
+        </tr>
+    `).join('');
+
+    body.querySelectorAll('.resident-status-btn').forEach(button => {
+        button.addEventListener('click', () => updateResidentStatus(button.dataset.id, button.dataset.status));
+    });
+}
+
+async function updateResidentStatus(residentId, accountStatus) {
+    const response = await adminFetch(`/api/admin/residents/${residentId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ accountStatus })
+    });
+    if (!response.ok || !response.data.success) return showAdminToast(response.data.message || 'Unable to update resident');
+    await Promise.all([loadAdminResidents(), loadAdminStats()]);
+    showAdminToast(`Resident account ${accountStatus}.`);
+}
+
+async function loadAdminTickets() {
+    const response = await adminFetch('/api/admin/tickets');
+    if (!response.ok || !response.data.success) return;
+    const container = document.getElementById('complaintsContainer');
+    if (!container) return;
+    container.innerHTML = response.data.data.length ? response.data.data.map(ticket => `
+        <div class="card complaint-card" style="margin-bottom: 1rem;">
+            <div class="card-header" style="display:flex; justify-content:space-between; gap:1rem;">
+                <div class="card-title">${escapeHTML(ticket.category)}</div>
+                <span class="status-badge active">${escapeHTML(ticket.status.replace('_', ' '))}</span>
+            </div>
+            <p>${escapeHTML(ticket.description)}</p>
+            <p style="color: var(--text-muted);">${escapeHTML(ticket.resident?.firstName || '')} ${escapeHTML(ticket.resident?.lastName || '')} | ${new Date(ticket.createdAt).toLocaleDateString()}</p>
+            <select class="ticket-status-select" data-id="${ticket._id}">
+                ${['open', 'in_progress', 'resolved', 'closed'].map(status => `<option value="${status}" ${status === ticket.status ? 'selected' : ''}>${status.replace('_', ' ')}</option>`).join('')}
+            </select>
+        </div>
+    `).join('') : '<div class="card"><p>No maintenance tickets yet.</p></div>';
+
+    container.querySelectorAll('.ticket-status-select').forEach(select => {
+        select.addEventListener('change', () => updateTicketStatus(select.dataset.id, select.value));
+    });
+}
+
+async function updateTicketStatus(ticketId, status) {
+    const response = await adminFetch(`/api/admin/tickets/${ticketId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+    });
+    if (!response.ok || !response.data.success) return showAdminToast(response.data.message || 'Unable to update ticket');
+    await Promise.all([loadAdminTickets(), loadAdminStats()]);
+    showAdminToast('Ticket status updated.');
+}
+
+async function loadAdminAnnouncements() {
+    const response = await adminFetch('/api/admin/announcements');
+    if (!response.ok || !response.data.success) return;
+    const container = document.getElementById('adminAnnouncementsList');
+    if (!container) return;
+    container.innerHTML = response.data.data.length ? response.data.data.map(item => `
+        <div class="card" style="margin-bottom: 1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+                <h3 style="margin:0;">${escapeHTML(item.title)}</h3>
+                <span class="status-badge active">${escapeHTML(item.category)}</span>
+            </div>
+            <p style="color:var(--text-muted);">Posted: ${new Date(item.createdAt).toLocaleDateString()}</p>
+            <p>${escapeHTML(item.content)}</p>
+        </div>
+    `).join('') : '<div class="card"><p>No announcements published yet.</p></div>';
+}
+
+function showAdminToast(message) {
+    let toast = document.getElementById('adminToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'adminToast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    Object.assign(toast.style, { display: 'block', position: 'fixed', bottom: '24px', right: '24px', background: '#0f172a', color: '#fff', padding: '14px 24px', borderRadius: '8px', zIndex: '99999' });
+    clearTimeout(window.adminToastTimeout);
+    window.adminToastTimeout = setTimeout(() => { toast.style.display = 'none'; }, 3500);
 }
 
 // --- HELPER UTILITIES ---
@@ -518,6 +643,19 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================
 // ADMIN LOGOUT HANDLER
 // ============================================
+window.addEventListener('DOMContentLoaded', () => {
+    if (!localStorage.getItem('adminToken')) {
+        window.location.href = 'admin-login.html';
+        return;
+    }
+    loadAdminData();
+    window.adminRefreshTimer = setInterval(loadAdminData, 20000);
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && localStorage.getItem('adminToken')) loadAdminData();
+});
+
 function logoutAdmin() {
     // 1. Clear stored administrative credentials
     localStorage.removeItem('adminToken');

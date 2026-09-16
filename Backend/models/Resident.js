@@ -60,6 +60,29 @@ const ResidentSchema = new mongoose.Schema({
         enum: ['Owner', 'Tenant'],
         required: [true, 'Status (Owner/Tenant) is required']
     },
+
+    accountStatus: {
+        type: String,
+        enum: ['pending', 'active', 'rejected', 'suspended'],
+        default: 'pending',
+        index: true
+    },
+
+    approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Admin',
+        default: null
+    },
+
+    approvedAt: {
+        type: Date,
+        default: null
+    },
+
+    rejectionReason: {
+        type: String,
+        default: ''
+    },
     
     propertyType: {
         type: String,
@@ -111,11 +134,6 @@ const ResidentSchema = new mongoose.Schema({
         propertyDocument: String,
         tenancyAgreement: String
     },
-    
-    complaints: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Complaint'
-    }],
     
     facilities: [{
         type: mongoose.Schema.Types.ObjectId,

@@ -6,9 +6,11 @@ const jwt = require('jsonwebtoken');
 const Resident = require('../models/Resident');
 const { validateResidentRegistration, validateResidentLogin } = require('../utils/validation');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'hallows-estate-secret-key';
+
 // Generate JWT token
 const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET || 'hallows-resident-secret-key', {
+    return jwt.sign({ id, type: 'resident' }, JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRE || '30d'
     });
 };
@@ -88,23 +90,21 @@ exports.register = async (req, res) => {
             propertyType,
             isActive: true,
             isVerified: false,
+            accountStatus: 'pending',
             paymentStatus: 'Pending'
         });
         
         // Save to database
         await newResident.save();
         
-        // Generate token
-        const token = generateToken(newResident._id);
-        
         // Return success response
         res.status(201).json({
             success: true,
-            message: 'Registration successful',
-            token,
+            message: 'Registration successful. Your account is awaiting admin approval.',
             residentId: newResident._id,
             residentName: newResident.getFullName(),
-            email: newResident.email
+            email: newResident.email,
+            accountStatus: newResident.accountStatus
         });
         
     } catch (error) {
@@ -142,11 +142,18 @@ exports.login = async (req, res) => {
             });
         }
         
-        // Check if resident is active
-        if (!resident.isActive) {
+        if (resident.accountStatus === 'pending') {
             return res.status(403).json({
                 success: false,
-                message: 'Resident account is inactive'
+                code: 'ACCOUNT_PENDING',
+                message: 'Your account is awaiting admin approval'
+            });
+        }
+
+        if ((resident.accountStatus && resident.accountStatus !== 'active') || !resident.isActive) {
+            return res.status(403).json({
+                success: false,
+                message: 'Resident account is not active'
             });
         }
         
@@ -191,10 +198,7 @@ exports.login = async (req, res) => {
 // Get resident profile
 exports.getProfile = async (req, res) => {
     try {
-        const resident = await Resident.findById(req.residentId)
-            .select('-password')
-            .populate('complaints')
-            .populate('facilities');
+        const resident = await Resident.findById(req.residentId).select('-password');
         
         if (!resident) {
             return res.status(404).json({
@@ -350,19 +354,15 @@ exports.getPaymentDetails = async (req, res) => {
 // Get announcements (public, all residents can access)
 exports.getAnnouncements = async (req, res) => {
     try {
-        // This would typically fetch from an Announcement model
-        // For now, returning sample data
+        const Announcement = require('../models/Announcement');
+        const announcements = await Announcement.find({
+            isPublished: true,
+            $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }]
+        }).sort({ publishedAt: -1, createdAt: -1 });
+
         res.status(200).json({
             success: true,
-            data: [
-                {
-                    id: 1,
-                    title: 'Community Meeting',
-                    category: 'Announcement',
-                    content: 'Join us for our monthly community meeting',
-                    date: new Date()
-                }
-            ]
+            data: announcements
         });
         
     } catch (error) {
@@ -371,6 +371,40 @@ exports.getAnnouncements = async (req, res) => {
             success: false,
             message: 'Server error'
         });
+    }
+};
+
+exports.createTicket = async (req, res) => {
+    try {
+        const { category, description, priority = 'normal' } = req.body;
+        if (!category || !description) {
+            return res.status(400).json({ success: false, message: 'Category and description are required' });
+        }
+        if (!['normal', 'urgent'].includes(priority)) {
+            return res.status(400).json({ success: false, message: 'Invalid priority' });
+        }
+
+        const MaintenanceTicket = require('../models/MaintenanceTicket');
+        const ticket = await MaintenanceTicket.create({
+            resident: req.residentId,
+            category,
+            description,
+            priority
+        });
+        res.status(201).json({ success: true, data: ticket });
+    } catch (error) {
+        console.error('Create ticket error:', error);
+        res.status(500).json({ success: false, message: 'Server error creating ticket' });
+    }
+};
+
+exports.getTickets = async (req, res) => {
+    try {
+        const MaintenanceTicket = require('../models/MaintenanceTicket');
+        const tickets = await MaintenanceTicket.find({ resident: req.residentId }).sort({ createdAt: -1 });
+        res.json({ success: true, data: tickets });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error loading tickets' });
     }
 };
 
