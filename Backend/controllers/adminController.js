@@ -100,7 +100,7 @@ exports.updateResident = async (req, res) => {
     try {
         const allowedFields = ['firstName', 'middleName', 'lastName', 'status', 'propertyType', 'unit', 'block', 'paymentStatus', 'dueAmount'];
         const update = Object.fromEntries(Object.entries(req.body).filter(([key]) => allowedFields.includes(key)));
-        const updated = await Resident.findByIdAndUpdate(req.params.residentId, update, { new: true, runValidators: true }).select('-password');
+        const updated = await Resident.findByIdAndUpdate(req.params.residentId, update, { returnDocument: 'after', runValidators: true }).select('-password');
         if (!updated) return res.status(404).json({ success: false, message: 'Resident not found' });
         res.json({ success: true, data: updated });
     } catch (error) {
@@ -126,7 +126,7 @@ exports.updateResidentStatus = async (req, res) => {
             update.approvedAt = new Date();
         }
 
-        const resident = await Resident.findByIdAndUpdate(req.params.residentId, update, { new: true, runValidators: true }).select('-password');
+        const resident = await Resident.findByIdAndUpdate(req.params.residentId, update, { returnDocument: 'after', runValidators: true }).select('-password');
         if (!resident) return res.status(404).json({ success: false, message: 'Resident not found' });
         res.json({ success: true, message: `Resident account ${accountStatus}`, data: resident });
     } catch (error) {
@@ -139,7 +139,7 @@ exports.recordPayment = async (req, res) => {
         const updated = await Resident.findByIdAndUpdate(
             req.params.residentId, 
             { paymentStatus: 'Paid', lastPaymentDate: new Date() }, 
-            { new: true }
+            { returnDocument: 'after' }
         );
         if (!updated) return res.status(404).json({ success: false, message: 'Resident not found' });
         res.json({ success: true, data: updated });
@@ -172,7 +172,7 @@ exports.updateTicketStatus = async (req, res) => {
         if (adminNotes !== undefined) update.adminNotes = adminNotes;
         if (status === 'resolved' || status === 'closed') update.resolvedAt = new Date();
         const MaintenanceTicket = require('../models/MaintenanceTicket');
-        const ticket = await MaintenanceTicket.findByIdAndUpdate(req.params.ticketId, update, { new: true })
+        const ticket = await MaintenanceTicket.findByIdAndUpdate(req.params.ticketId, update, { returnDocument: 'after' })
             .populate('resident', 'firstName middleName lastName unit block username');
         if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
         res.json({ success: true, data: ticket });

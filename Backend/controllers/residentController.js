@@ -235,7 +235,7 @@ exports.updateProfile = async (req, res) => {
         const resident = await Resident.findByIdAndUpdate(
             req.residentId,
             updateData,
-            { new: true, runValidators: true }
+            { returnDocument: 'after', runValidators: true }
         ).select('-password');
         
         if (!resident) {
