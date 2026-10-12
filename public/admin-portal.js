@@ -80,16 +80,38 @@ async function postAnnouncement() {
 }
 
 async function adminFetch(url, options = {}) {
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-            ...(options.headers || {})
-        }
-    });
+    let response;
+    try {
+        response = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                ...(options.headers || {})
+            }
+        });
+    } catch (error) {
+        return { ok: false, status: 0, data: { message: 'Network error' } };
+    }
     const data = await response.json().catch(() => ({}));
-    return { ok: response.ok, data };
+    // 401 now means a genuinely bad/expired token (database faults are 5xx), so it is safe to sign out.
+    if (response.status === 401) {
+        logoutAdmin();
+    }
+    return { ok: response.ok, status: response.status, data };
+}
+
+// Failed background refreshes used to be silent, which made a broken connection look
+// like "the admin portal isn't showing the resident's data". Surface it (at most once a minute).
+let lastLoadErrorAt = 0;
+function reportLoadError(label, response) {
+    console.warn(`Admin: could not load ${label}`, response.status, response.data?.message);
+    const now = Date.now();
+    if (now - lastLoadErrorAt < 60000) return;
+    lastLoadErrorAt = now;
+    showAdminToast(response.status === 0
+        ? 'Connection problem: portal data may be out of date.'
+        : `Could not load ${label}: ${response.data?.message || 'server error'}`);
 }
 
 async function loadAdminData() {
@@ -103,7 +125,7 @@ async function loadAdminData() {
 
 async function loadAdminStats() {
     const response = await adminFetch('/api/admin/dashboard-stats');
-    if (!response.ok || !response.data.success) return;
+    if (!response.ok || !response.data.success) return reportLoadError('dashboard stats', response);
     const stats = response.data.data;
     document.getElementById('metricTotalResidents').textContent = stats.totalResidents;
     document.getElementById('metricPendingApprovals').textContent = stats.pendingApprovals;
@@ -111,54 +133,127 @@ async function loadAdminStats() {
     document.getElementById('metricDuesCollected').textContent = `₦${Number(stats.duesCollected || 0).toLocaleString()}`;
 }
 
+function residentActionButtons(resident) {
+    const btn = (label, status, cls) =>
+        `<button class="btn ${cls} resident-status-btn" data-id="${escapeHTML(resident._id)}" data-status="${status}">${label}</button>`;
+    switch (resident.accountStatus) {
+        case 'pending':   return btn('Approve', 'active', 'btn-primary') + ' ' + btn('Reject', 'rejected', 'btn-secondary');
+        case 'active':    return btn('Suspend', 'suspended', 'btn-secondary');
+        case 'suspended': return btn('Reactivate', 'active', 'btn-primary');
+        case 'rejected':  return btn('Approve', 'active', 'btn-primary');
+        default:          return '';
+    }
+}
+
 async function loadAdminResidents() {
     const response = await adminFetch('/api/admin/residents');
-    if (!response.ok || !response.data.success) return;
+    if (!response.ok || !response.data.success) return reportLoadError('residents', response);
+    const residents = response.data.data || [];
+
+    // The dues ledger is built from the same payload, so both tabs always agree.
+    renderAdminDues(residents);
+
     const body = document.getElementById('residentTableBody');
     if (!body) return;
-    body.innerHTML = response.data.data.map(resident => `
-        <tr class="resident-row" data-status="${escapeHTML(resident.status.toLowerCase())}" data-account-status="${escapeHTML(resident.accountStatus)}">
+    body.innerHTML = residents.map(resident => `
+        <tr class="resident-row" data-status="${escapeHTML(String(resident.status || '').toLowerCase())}" data-account-status="${escapeHTML(resident.accountStatus)}">
             <td style="padding: 1rem;">${escapeHTML([resident.firstName, resident.middleName, resident.lastName].filter(Boolean).join(' '))}</td>
             <td style="padding: 1rem;">${escapeHTML(resident.username)}</td>
             <td style="padding: 1rem;">${escapeHTML(resident.status)}</td>
             <td style="padding: 1rem;">${escapeHTML(resident.propertyType)}</td>
             <td style="padding: 1rem;">${escapeHTML(resident.email)}<br>${escapeHTML(resident.phone)}</td>
             <td style="padding: 1rem;"><span class="status-badge active">${escapeHTML(resident.accountStatus)}</span></td>
-            <td style="padding: 1rem; text-align: center;">
-                ${resident.accountStatus === 'pending' ? `<button class="btn btn-primary resident-status-btn" data-id="${resident._id}" data-status="active">Approve</button>` : ''}
-                ${resident.accountStatus === 'active' ? `<button class="btn btn-secondary resident-status-btn" data-id="${resident._id}" data-status="suspended">Suspend</button>` : ''}
-            </td>
+            <td style="padding: 1rem; text-align: center;">${residentActionButtons(resident)}</td>
         </tr>
     `).join('');
 
     body.querySelectorAll('.resident-status-btn').forEach(button => {
         button.addEventListener('click', () => updateResidentStatus(button.dataset.id, button.dataset.status));
     });
+
+    // Re-rendering resets row visibility; re-apply whichever filter is selected so the
+    // 20-second refresh doesn't silently undo it.
+    filterResidents(window.currentResidentFilter || 'all');
 }
 
 async function updateResidentStatus(residentId, accountStatus) {
+    let rejectionReason = '';
+    if (accountStatus === 'rejected') {
+        const reason = prompt('Reason for rejection (optional):');
+        if (reason === null) return;
+        rejectionReason = reason.trim();
+    }
     const response = await adminFetch(`/api/admin/residents/${residentId}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ accountStatus })
+        body: JSON.stringify({ accountStatus, rejectionReason })
     });
     if (!response.ok || !response.data.success) return showAdminToast(response.data.message || 'Unable to update resident');
     await Promise.all([loadAdminResidents(), loadAdminStats()]);
     showAdminToast(`Resident account ${accountStatus}.`);
 }
 
+// --- DUES LEDGER ---
+function renderAdminDues(residents) {
+    const body = document.getElementById('duesTableBody');
+    if (!body) return;
+    const billable = residents.filter(resident => resident.accountStatus === 'active');
+    if (!billable.length) {
+        body.innerHTML = '<tr><td colspan="6" style="padding: 1rem; color: var(--text-muted);">No approved residents to bill yet.</td></tr>';
+        return;
+    }
+    const naira = value => `₦${Number(value || 0).toLocaleString()}`;
+    body.innerHTML = billable.map(resident => {
+        const outstanding = Math.max((Number(resident.dueAmount) || 0) - (Number(resident.amountPaid) || 0), 0);
+        const badgeColors = {
+            Paid: 'background: rgba(40, 167, 69, 0.12); color: #28a745;',
+            Overdue: 'background: rgba(220, 53, 69, 0.12); color: #dc3545;'
+        };
+        const badgeStyle = badgeColors[resident.paymentStatus] || 'background: rgba(255, 193, 7, 0.18); color: #a67c00;';
+        const fullName = [resident.firstName, resident.middleName, resident.lastName].filter(Boolean).join(' ');
+        return `
+        <tr class="dues-row">
+            <td style="padding: 1rem;">${escapeHTML(fullName)}<br><small style="color: var(--text-muted);">${escapeHTML(resident.username)}</small></td>
+            <td style="padding: 1rem;">${escapeHTML(resident.propertyType)}</td>
+            <td style="padding: 1rem;">${naira(resident.dueAmount)}</td>
+            <td style="padding: 1rem;"><span style="padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; ${badgeStyle}">${escapeHTML(resident.paymentStatus || 'Pending')}</span>${outstanding ? `<br><small style="color: var(--text-muted);">${naira(outstanding)} outstanding</small>` : ''}</td>
+            <td style="padding: 1rem;">${resident.lastPaymentDate ? new Date(resident.lastPaymentDate).toLocaleDateString() : '—'}</td>
+            <td style="padding: 1rem; text-align: right;">${outstanding ? `<button class="btn btn-primary dues-pay-btn" data-id="${escapeHTML(resident._id)}" data-outstanding="${outstanding}">Record Payment</button>` : ''}</td>
+        </tr>`;
+    }).join('');
+
+    body.querySelectorAll('.dues-pay-btn').forEach(button => {
+        button.addEventListener('click', () => recordResidentPayment(button.dataset.id, Number(button.dataset.outstanding)));
+    });
+}
+
+async function recordResidentPayment(residentId, outstanding) {
+    const input = prompt('Amount received (₦):', outstanding);
+    if (input === null) return;
+    const amount = Number(String(input).replace(/[₦,\s]/g, ''));
+    if (!Number.isFinite(amount) || amount <= 0) return showAdminToast('Enter a valid amount greater than zero.');
+
+    const response = await adminFetch(`/api/admin/residents/${residentId}/payment`, {
+        method: 'POST',
+        body: JSON.stringify({ amount })
+    });
+    if (!response.ok || !response.data.success) return showAdminToast(response.data.message || 'Unable to record payment');
+    await Promise.all([loadAdminResidents(), loadAdminStats()]);
+    showAdminToast('Payment recorded.');
+}
+
 async function loadAdminTickets() {
     const response = await adminFetch('/api/admin/tickets');
-    if (!response.ok || !response.data.success) return;
+    if (!response.ok || !response.data.success) return reportLoadError('tickets', response);
     const container = document.getElementById('complaintsContainer');
     if (!container) return;
     container.innerHTML = response.data.data.length ? response.data.data.map(ticket => `
         <div class="card complaint-card" style="margin-bottom: 1rem;">
             <div class="card-header" style="display:flex; justify-content:space-between; gap:1rem;">
                 <div class="card-title">${escapeHTML(ticket.category)}</div>
-                <span class="status-badge active">${escapeHTML(ticket.status.replace('_', ' '))}</span>
+                <span class="status-badge active">${escapeHTML(String(ticket.status).replace('_', ' '))}</span>
             </div>
             <p>${escapeHTML(ticket.description)}</p>
-            <p style="color: var(--text-muted);">${escapeHTML(ticket.resident?.firstName || '')} ${escapeHTML(ticket.resident?.lastName || '')} | ${new Date(ticket.createdAt).toLocaleDateString()}</p>
+            <p style="color: var(--text-muted);">${escapeHTML([ticket.resident?.firstName, ticket.resident?.lastName].filter(Boolean).join(' ') || 'Unknown resident')}${ticketLocation(ticket.resident)} | ${new Date(ticket.createdAt).toLocaleDateString()}${ticket.priority === 'urgent' ? ' | <strong style="color: #dc2626;">URGENT</strong>' : ''}${ticket.assignedTo ? ` | Handled by ${escapeHTML(ticket.assignedTo.firstName)}` : ''}</p>
             <select class="ticket-status-select" data-id="${ticket._id}">
                 ${['open', 'in_progress', 'resolved', 'closed'].map(status => `<option value="${status}" ${status === ticket.status ? 'selected' : ''}>${status.replace('_', ' ')}</option>`).join('')}
             </select>
@@ -168,6 +263,14 @@ async function loadAdminTickets() {
     container.querySelectorAll('.ticket-status-select').forEach(select => {
         select.addEventListener('change', () => updateTicketStatus(select.dataset.id, select.value));
     });
+}
+
+function ticketLocation(resident) {
+    if (!resident) return '';
+    const parts = [];
+    if (resident.unit && resident.unit !== 'Not Assigned') parts.push(`Unit ${resident.unit}`);
+    if (resident.block && resident.block !== 'Not Assigned') parts.push(`Block ${resident.block}`);
+    return parts.length ? ` | ${escapeHTML(parts.join(', '))}` : '';
 }
 
 async function updateTicketStatus(ticketId, status) {
@@ -182,7 +285,7 @@ async function updateTicketStatus(ticketId, status) {
 
 async function loadAdminAnnouncements() {
     const response = await adminFetch('/api/admin/announcements');
-    if (!response.ok || !response.data.success) return;
+    if (!response.ok || !response.data.success) return reportLoadError('announcements', response);
     const container = document.getElementById('adminAnnouncementsList');
     if (!container) return;
     container.innerHTML = response.data.data.length ? response.data.data.map(item => `
@@ -211,8 +314,8 @@ function showAdminToast(message) {
 }
 
 // --- HELPER UTILITIES ---
-function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, 
+function escapeHTML(value = '') {
+    return String(value ?? '').replace(/[&<>'"]/g, 
         tag => ({
             '&': '&amp;',
             '<': '&lt;',
@@ -317,6 +420,8 @@ function viewResidentProfile(residentName) {
 
 // --- FILTER FUNCTIONALITY ---
 function filterResidents(filterValue) {
+    window.currentResidentFilter = filterValue;
+
     // Update active button
     const residentFilterBtns = document.querySelectorAll('#residents .filter-btn');
     residentFilterBtns.forEach(b => b.classList.remove('active'));
@@ -330,8 +435,9 @@ function filterResidents(filterValue) {
     // Filter resident rows
     const residentRows = document.querySelectorAll('.resident-row');
     residentRows.forEach(row => {
-        const status = row.getAttribute('data-status');
-        if (filterValue === 'all' || status === filterValue) {
+        // "Pending Approval" is an account state, not an Owner/Tenant status.
+        const attribute = filterValue === 'pending' ? 'data-account-status' : 'data-status';
+        if (filterValue === 'all' || row.getAttribute(attribute) === filterValue) {
             row.style.display = '';
         } else {
             row.style.display = 'none';

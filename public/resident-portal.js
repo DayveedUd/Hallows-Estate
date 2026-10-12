@@ -51,11 +51,29 @@ async function loadResidentData() {
     await fetchResidentProfile(token);
     await fetchResidentTickets(token);
 
-    window.residentRefreshTimer = setInterval(() => {
-        fetchAnnouncements(token);
-        fetchResidentTickets(token);
-        fetchResidentProfile(token);
-    }, 20000);
+    // Everything an admin can change (approval, dues, ticket status, announcements)
+    // must be re-read, otherwise it only appears after a manual reload.
+    const refreshAll = () => Promise.all([
+        fetchPaymentDetails(token),
+        fetchAnnouncements(token),
+        fetchResidentProfile(token),
+        fetchResidentTickets(token)
+    ]);
+    window.residentRefreshTimer = setInterval(refreshAll, 20000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) refreshAll();
+    });
+}
+
+// 401 = bad/expired token; 403 = the account was suspended or deactivated by an admin.
+// Database faults are 5xx, so they never trigger this. Returns true if it signed out.
+function handleAuthFailure(response) {
+    if (response.status === 401 || response.status === 403) {
+        clearInterval(window.residentRefreshTimer);
+        logoutResident();
+        return true;
+    }
+    return false;
 }
 
 // ============================================
@@ -124,6 +142,7 @@ async function fetchPaymentDetails(token) {
         const response = await fetch('/api/resident/payment-details', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (handleAuthFailure(response)) return;
         if (!response.ok) throw new Error('Failed to load dues details');
         const res = await response.json();
         if (res.success && res.data) {
@@ -153,11 +172,9 @@ async function fetchAnnouncements(token) {
         const response = await fetch('/api/resident/announcements', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) return;
+        if (handleAuthFailure(response) || !response.ok) return;
         const res = await response.json();
-        if (res.success && res.data?.length > 0) {
-            renderAnnouncements(res.data);
-        }
+        if (res.success) renderAnnouncements(res.data || []);
     } catch (err) {
         console.warn('Announcements offline/default used:', err.message);
     }
@@ -168,10 +185,24 @@ async function fetchResidentProfile(token) {
         const response = await fetch('/api/resident/profile', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) return;
+        if (handleAuthFailure(response) || !response.ok) return;
         const res = await response.json();
         const resident = res.data;
         if (!resident) return;
+
+        // Name/unit are cached from login; keep them in step with what the admin has on file.
+        const fullName = [resident.firstName, resident.middleName, resident.lastName].filter(Boolean).join(' ');
+        const unit = resident.unit || 'Not Assigned';
+        if (fullName) {
+            localStorage.setItem('residentName', fullName);
+            ['residentName', 'welcomeName'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = fullName;
+            });
+        }
+        localStorage.setItem('residentUnit', unit);
+        const infoEl = document.getElementById('residentInfo');
+        if (infoEl) infoEl.textContent = `Unit: ${unit}`;
 
         const accountStatus = document.getElementById('accountStatus');
         if (accountStatus) {
@@ -189,7 +220,7 @@ async function fetchResidentTickets(token) {
         const response = await fetch('/api/resident/tickets', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) return;
+        if (handleAuthFailure(response) || !response.ok) return;
         const res = await response.json();
         if (res.success) renderResidentTickets(res.data || []);
     } catch (err) {
@@ -209,7 +240,7 @@ function renderResidentTickets(tickets) {
         <div class="card" style="margin-bottom: 1rem;">
             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                 <div class="card-title" style="font-weight: 600; color: var(--navy);">${escapeHTML(ticket.category)}</div>
-                <span class="status-badge active">${escapeHTML(ticket.status.replace('_', ' '))}</span>
+                <span class="status-badge active">${escapeHTML(String(ticket.status).replace('_', ' '))}</span>
             </div>
             <p style="color: var(--dark-grey); font-size: 0.95rem; margin-bottom: 0.75rem;">${escapeHTML(ticket.description)}</p>
             <div style="font-size: 0.8rem; color: #64748b;">Reported on: ${new Date(ticket.createdAt).toLocaleDateString()} | Priority: ${escapeHTML(ticket.priority)}</div>
@@ -226,6 +257,11 @@ function escapeHTML(value = '') {
 function renderAnnouncements(list) {
     const container = document.getElementById('announcementsList');
     if (!container) return;
+
+    if (!list.length) {
+        container.innerHTML = '<div class="card"><p>No announcements at the moment.</p></div>';
+        return;
+    }
 
     container.innerHTML = list.map(item => `
         <div class="announcement-item" data-category="${escapeHTML(item.category?.toLowerCase() || 'estate')}">

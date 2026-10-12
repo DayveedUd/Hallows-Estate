@@ -5,16 +5,17 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/Admin');
 const Resident = require('../models/Resident');
+const Announcement = require('../models/Announcement');
+const MaintenanceTicket = require('../models/MaintenanceTicket');
+const { getJwtSecret } = require('../config/env');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'hallows-estate-secret-key';
-
-const generateToken = (id) => jwt.sign({ id, type: 'admin' }, JWT_SECRET, {
+const generateToken = (id) => jwt.sign({ id, type: 'admin' }, getJwtSecret(), {
     expiresIn: process.env.JWT_EXPIRE || '30d'
 });
 
 exports.login = async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password } = req.body || {};
         if (!username || !password) {
             return res.status(400).json({ success: false, message: 'Username and password are required' });
         }
@@ -51,11 +52,10 @@ exports.getProfile = async (req, res) => {
 // Returns total residents, pending approvals, and dues status
 exports.getDashboardStats = async (req, res) => {
     try {
-        const Ticket = require('../models/MaintenanceTicket');
         const [totalResidents, pendingApprovals, openComplaints, dues] = await Promise.all([
             Resident.countDocuments(),
             Resident.countDocuments({ accountStatus: 'pending' }),
-            Ticket.countDocuments({ status: { $in: ['open', 'in_progress'] } }),
+            MaintenanceTicket.countDocuments({ status: { $in: ['open', 'in_progress'] } }),
             Resident.aggregate([{ $group: { _id: null, total: { $sum: '$amountPaid' } } }])
         ]);
         
@@ -136,13 +136,29 @@ exports.updateResidentStatus = async (req, res) => {
 
 exports.recordPayment = async (req, res) => {
     try {
-        const updated = await Resident.findByIdAndUpdate(
-            req.params.residentId, 
-            { paymentStatus: 'Paid', lastPaymentDate: new Date() }, 
-            { returnDocument: 'after' }
-        );
-        if (!updated) return res.status(404).json({ success: false, message: 'Resident not found' });
-        res.json({ success: true, data: updated });
+        const resident = await Resident.findById(req.params.residentId);
+        if (!resident) return res.status(404).json({ success: false, message: 'Resident not found' });
+
+        // `amount` is optional: omitted means "settle the outstanding balance".
+        const outstanding = Math.max((resident.dueAmount || 0) - (resident.amountPaid || 0), 0);
+        const rawAmount = req.body?.amount;
+        const amount = rawAmount === undefined || rawAmount === null || rawAmount === '' ? outstanding : Number(rawAmount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            return res.status(400).json({ success: false, message: 'A payment amount greater than zero is required' });
+        }
+
+        // The resident portal derives "outstanding" from dueAmount - amountPaid, and the
+        // admin dashboard sums amountPaid, so amountPaid must move with paymentStatus.
+        resident.amountPaid = (resident.amountPaid || 0) + amount;
+        resident.lastPaymentDate = new Date();
+        if (resident.amountPaid >= resident.dueAmount) {
+            resident.paymentStatus = 'Paid';
+        } else if (resident.paymentStatus !== 'Overdue') {
+            resident.paymentStatus = 'Pending';
+        }
+        await resident.save();
+
+        res.json({ success: true, message: 'Payment recorded', data: resident });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -150,7 +166,6 @@ exports.recordPayment = async (req, res) => {
 
 exports.getTickets = async (req, res) => {
     try {
-        const MaintenanceTicket = require('../models/MaintenanceTicket');
         const tickets = await MaintenanceTicket.find()
             .populate('resident', 'firstName middleName lastName unit block username')
             .populate('assignedTo', 'firstName lastName')
@@ -171,9 +186,11 @@ exports.updateTicketStatus = async (req, res) => {
         const update = { status };
         if (adminNotes !== undefined) update.adminNotes = adminNotes;
         if (status === 'resolved' || status === 'closed') update.resolvedAt = new Date();
-        const MaintenanceTicket = require('../models/MaintenanceTicket');
+        else update.resolvedAt = null; // re-opened tickets are no longer resolved
+        if (status !== 'open') update.assignedTo = req.adminId; // last admin to act on it
         const ticket = await MaintenanceTicket.findByIdAndUpdate(req.params.ticketId, update, { returnDocument: 'after' })
-            .populate('resident', 'firstName middleName lastName unit block username');
+            .populate('resident', 'firstName middleName lastName unit block username')
+            .populate('assignedTo', 'firstName lastName');
         if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
         res.json({ success: true, data: ticket });
     } catch (error) {
@@ -183,7 +200,6 @@ exports.updateTicketStatus = async (req, res) => {
 
 exports.getAnnouncements = async (req, res) => {
     try {
-        const Announcement = require('../models/Announcement');
         const announcements = await Announcement.find().sort({ createdAt: -1 });
         res.json({ success: true, data: announcements });
     } catch (error) {
@@ -197,7 +213,6 @@ exports.createAnnouncement = async (req, res) => {
         if (!title || !content || !category) {
             return res.status(400).json({ success: false, message: 'Title, content, and category are required' });
         }
-        const Announcement = require('../models/Announcement');
         const announcement = await Announcement.create({ title, content, category, severity, expiresAt, createdBy: req.adminId });
         res.status(201).json({ success: true, data: announcement });
     } catch (error) {

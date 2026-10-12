@@ -46,7 +46,7 @@ const ResidentSchema = new mongoose.Schema({
         required: [true, 'Email is required'],
         unique: true,
         lowercase: true,
-        match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+        match: [/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/, 'Please enter a valid email'] // same rule as the registration form; the old pattern rejected TLDs longer than 3 letters (.africa, .online, .tech)
     },
     
     phone: {

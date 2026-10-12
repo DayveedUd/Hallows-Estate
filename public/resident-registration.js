@@ -130,7 +130,6 @@ registrationForm.addEventListener('submit', async function(e) {
         const data = await response.json();
         
         if (response.ok && (data.success || data.status === 'success')) {
-            alert('Registered successfully');
             showSuccessMessage();
             
             // Clear form
@@ -188,8 +187,8 @@ function showSuccessMessage() {
                 width: 90%;
             ">
                 <div style="font-size: 3.5rem; color: #28a745; margin-bottom: 0.5rem;">✓</div>
-                <h2 style="color: #1a1a1a; margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">Registered Successfully!</h2>
-                <p style="color: #666; margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Your resident account has been created. Redirecting to login...</p>
+                <h2 style="color: #1a1a1a; margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">Registration Received!</h2>
+                <p style="color: #666; margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Your account is awaiting approval by the estate admin. You can log in once it is approved. Redirecting to login...</p>
                 <div style="width: 100%; height: 4px; background: #eee; border-radius: 2px; overflow: hidden;">
                     <div style="
                         height: 100%;

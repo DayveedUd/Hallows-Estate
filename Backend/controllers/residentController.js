@@ -4,13 +4,14 @@
 
 const jwt = require('jsonwebtoken');
 const Resident = require('../models/Resident');
+const Announcement = require('../models/Announcement');
+const MaintenanceTicket = require('../models/MaintenanceTicket');
+const { getJwtSecret } = require('../config/env');
 const { validateResidentRegistration, validateResidentLogin } = require('../utils/validation');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'hallows-estate-secret-key';
 
 // Generate JWT token
 const generateToken = (id) => {
-    return jwt.sign({ id, type: 'resident' }, JWT_SECRET, {
+    return jwt.sign({ id, type: 'resident' }, getJwtSecret(), {
         expiresIn: process.env.JWT_EXPIRE || '30d'
     });
 };
@@ -28,7 +29,7 @@ exports.register = async (req, res) => {
             phone,
             status,
             propertyType
-        } = req.body;
+        } = req.body || {};
         
         // Validate input
         const validation = validateResidentRegistration({
@@ -50,31 +51,31 @@ exports.register = async (req, res) => {
             });
         }
         
-        // Check if username already exists
-        const existingUsername = await Resident.findOne({ username: username.toLowerCase() });
-        if (existingUsername) {
-            return res.status(409).json({
-                success: false,
-                message: 'Username already taken'
-            });
-        }
-        
-        // Check if email already exists
-        const existingEmail = await Resident.findOne({ email: email.toLowerCase() });
-        if (existingEmail) {
-            return res.status(409).json({
-                success: false,
-                message: 'Email already registered'
-            });
-        }
-        
-        // Check if phone already exists
-        const existingPhone = await Resident.findOne({ phone });
-        if (existingPhone) {
-            return res.status(409).json({
-                success: false,
-                message: 'Phone number already registered'
-            });
+        // Normalise once so the duplicate check and the saved record always agree
+        // ("0801 234 5678" and "08012345678" are the same phone number).
+        const normalized = {
+            username: username.toLowerCase().trim(),
+            email: email.toLowerCase().trim(),
+            phone: String(phone).replace(/\s+/g, '')
+        };
+
+        // One round-trip instead of three
+        const existing = await Resident.findOne({
+            $or: [
+                { username: normalized.username },
+                { email: normalized.email },
+                { phone: normalized.phone }
+            ]
+        }).select('username email phone').lean();
+
+        if (existing) {
+            if (existing.username === normalized.username) {
+                return res.status(409).json({ success: false, message: 'Username already taken' });
+            }
+            if (existing.email === normalized.email) {
+                return res.status(409).json({ success: false, message: 'Email already registered' });
+            }
+            return res.status(409).json({ success: false, message: 'Phone number already registered' });
         }
         
         // Create new resident
@@ -82,10 +83,10 @@ exports.register = async (req, res) => {
             firstName: firstName.trim(),
             middleName: middleName?.trim() || '',
             lastName: lastName.trim(),
-            username: username.toLowerCase().trim(),
+            username: normalized.username,
             password, // Will be hashed by pre-save middleware
-            email: email.toLowerCase().trim(),
-            phone: phone.trim(),
+            email: normalized.email,
+            phone: normalized.phone,
             status,
             propertyType,
             isActive: true,
@@ -108,6 +109,18 @@ exports.register = async (req, res) => {
         });
         
     } catch (error) {
+        // Two simultaneous sign-ups can both pass the check above; the unique index decides.
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern || {})[0] || 'record';
+            return res.status(409).json({ success: false, message: `That ${field} is already registered` });
+        }
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({
+                success: false,
+                message: Object.values(error.errors)[0]?.message || 'Validation failed',
+                errors: Object.fromEntries(Object.entries(error.errors).map(([k, v]) => [k, v.message]))
+            });
+        }
         console.error('Registration error:', error);
         res.status(500).json({
             success: false,
@@ -120,7 +133,7 @@ exports.register = async (req, res) => {
 // Resident Login
 exports.login = async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password } = req.body || {};
         
         // Validate input
         const validation = validateResidentLogin({ username, password });
@@ -354,7 +367,6 @@ exports.getPaymentDetails = async (req, res) => {
 // Get announcements (public, all residents can access)
 exports.getAnnouncements = async (req, res) => {
     try {
-        const Announcement = require('../models/Announcement');
         const announcements = await Announcement.find({
             isPublished: true,
             $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }]
@@ -384,7 +396,6 @@ exports.createTicket = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid priority' });
         }
 
-        const MaintenanceTicket = require('../models/MaintenanceTicket');
         const ticket = await MaintenanceTicket.create({
             resident: req.residentId,
             category,
@@ -400,7 +411,6 @@ exports.createTicket = async (req, res) => {
 
 exports.getTickets = async (req, res) => {
     try {
-        const MaintenanceTicket = require('../models/MaintenanceTicket');
         const tickets = await MaintenanceTicket.find({ resident: req.residentId }).sort({ createdAt: -1 });
         res.json({ success: true, data: tickets });
     } catch (error) {

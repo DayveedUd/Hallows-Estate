@@ -3,7 +3,9 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const mongoose = require('mongoose');
+const { connectDB, getDbStatus } = require('./Backend/config/db');
+const { isProduction } = require('./Backend/config/env');
+require('./Backend/models'); // register every model before the first request
 
 const adminRoutes = require('./Backend/routes/adminRoutes');
 const residentRoutes = require('./Backend/routes/residentRoutes');
@@ -31,28 +33,36 @@ app.use(express.urlencoded({ extended: true }));
 const publicPath = path.join(__dirname, 'public');
 app.use(express.static(publicPath));
 
-// MongoDB
-const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
-
-const connectMongo = async () => {
-  if (!mongoURI) {
-    console.warn('⚠️ MONGO_URI is not defined in environment variables.');
-    return;
-  }
-
+// ------------------------------------------------------------------
+// Database guard
+// Every /api route passes through here, so no controller or auth middleware can
+// run a query before the connection is ready. On a warm Vercel instance this is a
+// no-op (the cached connection is reused); on a cold start it awaits the connect.
+// If the database is unreachable we answer 503 quickly instead of letting the
+// query sit in Mongoose's buffer for 10s and surface as a 500.
+// ------------------------------------------------------------------
+const ensureDb = async (req, res, next) => {
   try {
-    await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000
-    });
-    console.log('MongoDB connected successfully');
+    await connectDB();
+    next();
   } catch (error) {
-    console.error('MongoDB connection failed:', error.message || error);
+    console.error(`Database unavailable [${error.code || error.name}]:`, error.message);
+    res.status(503).json({
+      success: false,
+      code: error.code === 'NO_DB_URI' ? 'DB_NOT_CONFIGURED' : 'DB_UNAVAILABLE',
+      message: 'The service is temporarily unavailable. Please try again in a moment.',
+      ...(!isProduction() && { detail: error.message })
+    });
   }
 };
 
-connectMongo();
+// API responses are live data: never let a browser or CDN serve a stale copy.
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
-// Health check
+// Health checks
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'Server is running',
@@ -60,6 +70,24 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development'
   });
 });
+
+// Deep check: actually connects. Open /api/health/db in a browser after deploying;
+// on failure the response says whether the URI is missing or Atlas refused the connection.
+app.get('/api/health/db', async (req, res) => {
+  try {
+    await connectDB();
+    res.json({ success: true, ...getDbStatus() });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      code: error.code || error.name,
+      message: error.message,
+      ...getDbStatus()
+    });
+  }
+});
+
+app.use('/api', ensureDb);
 
 // API routes
 app.use('/api/admin', adminRoutes);
@@ -100,6 +128,10 @@ const shouldStartLocalServer = !isVercelRuntime && process.env.NODE_ENV !== 'pro
 if (shouldStartLocalServer) {
   const server = app.listen(PORT, () => {
     console.log(`🚀 Hallows Estate Server running on port ${PORT}`);
+    // Warm the connection locally so config problems show up at startup.
+    connectDB()
+      .then(() => console.log('MongoDB connected successfully'))
+      .catch((error) => console.error('MongoDB connection failed:', error.message));
   });
 
   server.on('error', (error) => {

@@ -5,11 +5,26 @@
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const Resident = require('../models/Resident');
+const { getJwtSecret } = require('../config/env');
+
+// Only genuine token problems are 401s. Anything else (database error, missing
+// JWT_SECRET, ...) is a server fault: reporting it as 401 would make the portals
+// log users out whenever the database hiccups.
+const sendAuthError = (error, res) => {
+    if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ success: false, message: 'Token expired' });
+    }
+    if (error.name === 'JsonWebTokenError' || error.name === 'NotBeforeError') {
+        return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+    console.error('Auth middleware error:', error);
+    return res.status(500).json({ success: false, message: 'Authentication check failed. Please try again.' });
+};
 
 // Verify admin token
 const verifyAdminToken = async (req, res, next) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1] || req.body.token;
+        const token = req.headers.authorization?.split(' ')[1] || req.body?.token;
         
         if (!token) {
             return res.status(401).json({
@@ -18,7 +33,7 @@ const verifyAdminToken = async (req, res, next) => {
             });
         }
         
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'hallows-estate-secret-key');
+        const decoded = jwt.verify(token, getJwtSecret());
         
         // Get admin from database
         const admin = await Admin.findById(decoded.id);
@@ -42,24 +57,14 @@ const verifyAdminToken = async (req, res, next) => {
         next();
         
     } catch (error) {
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({
-                success: false,
-                message: 'Token expired'
-            });
-        }
-        
-        return res.status(401).json({
-            success: false,
-            message: 'Invalid token'
-        });
+        return sendAuthError(error, res);
     }
 };
 
 // Verify resident token
 const verifyResidentToken = async (req, res, next) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1] || req.body.token;
+        const token = req.headers.authorization?.split(' ')[1] || req.body?.token;
         
         if (!token) {
             return res.status(401).json({
@@ -68,7 +73,7 @@ const verifyResidentToken = async (req, res, next) => {
             });
         }
         
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'hallows-estate-secret-key');
+        const decoded = jwt.verify(token, getJwtSecret());
         
         // Get resident from database
         const resident = await Resident.findById(decoded.id);
@@ -92,17 +97,7 @@ const verifyResidentToken = async (req, res, next) => {
         next();
         
     } catch (error) {
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({
-                success: false,
-                message: 'Token expired'
-            });
-        }
-        
-        return res.status(401).json({
-            success: false,
-            message: 'Invalid token'
-        });
+        return sendAuthError(error, res);
     }
 };
 
