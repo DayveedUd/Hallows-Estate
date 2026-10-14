@@ -2,6 +2,8 @@
 // HALLOWS ESTATE - RESIDENT PORTAL JS
 // ================================================
 
+let selectedMaintenancePhoto = null;
+
 window.addEventListener('DOMContentLoaded', () => {
     checkAuthentication();
     loadResidentData();
@@ -364,6 +366,7 @@ function processPayment() {
 async function submitMaintenance() {
     const categoryEl = document.getElementById('maintenanceCategory');
     const descEl = document.getElementById('maintenanceDesc');
+    const photoInput = document.getElementById('maintenancePhoto');
 
     const category = categoryEl?.value;
     const desc = descEl?.value.trim();
@@ -373,15 +376,24 @@ async function submitMaintenance() {
         return;
     }
 
+    if (selectedMaintenancePhoto && !isValidMaintenancePhoto(selectedMaintenancePhoto)) {
+        showToast('⚠️ Please choose an image no larger than 5 MB.');
+        return;
+    }
+
     const token = localStorage.getItem('residentToken');
     try {
+        const photo = selectedMaintenancePhoto
+            ? await readMaintenancePhoto(selectedMaintenancePhoto)
+            : undefined;
         const response = await fetch('/api/resident/tickets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({
                 category,
                 description: desc,
-                priority: document.querySelector('input[name="priority"]:checked')?.value || 'normal'
+                priority: document.querySelector('input[name="priority"]:checked')?.value || 'normal',
+                ...(photo && { photo })
             })
         });
         const result = await response.json();
@@ -389,11 +401,39 @@ async function submitMaintenance() {
 
         categoryEl.value = '';
         descEl.value = '';
+        if (photoInput) photoInput.value = '';
+        selectedMaintenancePhoto = null;
+        updateMaintenancePhotoName();
         closeModal('maintenanceModal');
         await fetchResidentTickets(token);
         showToast('Maintenance issue reported successfully.');
     } catch (error) {
         showToast(error.message);
+    }
+}
+
+const MAX_MAINTENANCE_PHOTO_SIZE = 5 * 1024 * 1024;
+
+function isValidMaintenancePhoto(file) {
+    return file.size <= MAX_MAINTENANCE_PHOTO_SIZE &&
+        ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type);
+}
+
+function readMaintenancePhoto(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Unable to read the selected photo.'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function updateMaintenancePhotoName() {
+    const nameEl = document.getElementById('maintenancePhotoName');
+    if (nameEl) {
+        nameEl.textContent = selectedMaintenancePhoto
+            ? selectedMaintenancePhoto.name
+            : 'Photo optional (max 5 MB)';
     }
 }
 
@@ -445,6 +485,42 @@ function confirmBooking() {
 // EVENT LISTENERS & PROFILE HELPERS
 // ============================================
 function setupEventListeners() {
+    const photoInput = document.getElementById('maintenancePhoto');
+    const photoDropzone = photoInput?.closest('label');
+    if (photoInput && photoDropzone) {
+        photoInput.addEventListener('change', () => {
+            const file = photoInput.files?.[0];
+            if (!file) return;
+            if (!isValidMaintenancePhoto(file)) {
+                selectedMaintenancePhoto = null;
+                photoInput.value = '';
+                updateMaintenancePhotoName();
+                showToast('⚠️ Please choose a JPEG, PNG, GIF, or WebP image no larger than 5 MB.');
+                return;
+            }
+            selectedMaintenancePhoto = file;
+            updateMaintenancePhotoName();
+        });
+
+        photoDropzone.addEventListener('dragover', (event) => {
+            event.preventDefault();
+        });
+        photoDropzone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            const file = event.dataTransfer?.files[0];
+            if (!file) return;
+            if (!isValidMaintenancePhoto(file)) {
+                selectedMaintenancePhoto = null;
+                if (photoInput) photoInput.value = '';
+                updateMaintenancePhotoName();
+                showToast('⚠️ Please choose a JPEG, PNG, GIF, or WebP image no larger than 5 MB.');
+                return;
+            }
+            selectedMaintenancePhoto = file;
+            updateMaintenancePhotoName();
+        });
+    }
+
     // Tab navigation - data-tab attribute
     const navTabs = document.querySelectorAll('.nav-tab');
     navTabs.forEach(tab => {

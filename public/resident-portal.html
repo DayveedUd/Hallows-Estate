@@ -276,12 +276,14 @@
  
             <div class="form-group">
                 <label class="form-label">Upload Photo (Optional)</label>
-                <div style="border: 2px dashed var(--border-grey); border-radius: 4px; padding: 2rem; text-align: center; cursor: pointer;">
+                <label for="maintenancePhoto" style="display: block; border: 2px dashed var(--border-grey); border-radius: 4px; padding: 2rem; text-align: center; cursor: pointer;">
+                    <input type="file" id="maintenancePhoto" accept="image/jpeg,image/png,image/gif,image/webp" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;">
                     <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">
                         <svg class="svg-icon-large" viewBox="0 0 24 24"><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
                     </div>
                     <div style="color: var(--dark-grey); font-size: 0.95rem;">Click to upload photo or drag and drop</div>
-                </div>
+                    <div id="maintenancePhotoName" style="color: var(--dark-grey); font-size: 0.85rem; margin-top: 0.5rem;">Photo optional (max 5 MB)</div>
+                </label>
             </div>
  
             <div class="form-group">

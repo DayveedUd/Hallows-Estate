@@ -388,7 +388,7 @@ exports.getAnnouncements = async (req, res) => {
 
 exports.createTicket = async (req, res) => {
     try {
-        const { category, description, priority = 'normal' } = req.body;
+        const { category, description, priority = 'normal', photo } = req.body;
         if (!category || !description) {
             return res.status(400).json({ success: false, message: 'Category and description are required' });
         }
@@ -396,13 +396,29 @@ exports.createTicket = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid priority' });
         }
 
+        if (photo !== undefined) {
+            const match = /^data:image\/(jpeg|png|gif|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(photo);
+            if (!match) {
+                return res.status(400).json({ success: false, message: 'Photo must be a JPEG, PNG, GIF, or WebP image' });
+            }
+            const base64 = match[2];
+            const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+            const photoSize = Math.floor(base64.length * 3 / 4) - padding;
+            if (photoSize > 5 * 1024 * 1024) {
+                return res.status(400).json({ success: false, message: 'Photo must not exceed 5 MB' });
+            }
+        }
+
         const ticket = await MaintenanceTicket.create({
             resident: req.residentId,
             category,
             description,
-            priority
+            priority,
+            ...(photo !== undefined && { photo })
         });
-        res.status(201).json({ success: true, data: ticket });
+        const ticketData = ticket.toObject();
+        delete ticketData.photo;
+        res.status(201).json({ success: true, data: ticketData });
     } catch (error) {
         console.error('Create ticket error:', error);
         res.status(500).json({ success: false, message: 'Server error creating ticket' });

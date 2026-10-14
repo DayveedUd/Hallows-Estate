@@ -18,6 +18,10 @@ const MaintenanceTicketSchema = new mongoose.Schema({
         trim: true,
         maxlength: 3000
     },
+    photo: {
+        type: String,
+        select: false
+    },
     priority: {
         type: String,
         enum: ['normal', 'urgent'],

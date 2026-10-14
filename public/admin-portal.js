@@ -253,6 +253,9 @@ async function loadAdminTickets() {
                 <span class="status-badge active">${escapeHTML(String(ticket.status).replace('_', ' '))}</span>
             </div>
             <p>${escapeHTML(ticket.description)}</p>
+            ${ticket.photo ? `<button type="button" class="ticket-photo-preview" aria-label="View maintenance photo" style="border: 0; background: none; padding: 0; cursor: zoom-in; margin: 0.5rem 0 1rem;">
+                <img src="${escapeHTML(ticket.photo)}" alt="Photo attached to maintenance issue" style="display: block; max-width: 180px; max-height: 140px; object-fit: cover; border-radius: 6px;">
+            </button>` : ''}
             <p style="color: var(--text-muted);">${escapeHTML([ticket.resident?.firstName, ticket.resident?.lastName].filter(Boolean).join(' ') || 'Unknown resident')}${ticketLocation(ticket.resident)} | ${new Date(ticket.createdAt).toLocaleDateString()}${ticket.priority === 'urgent' ? ' | <strong style="color: #dc2626;">URGENT</strong>' : ''}${ticket.assignedTo ? ` | Handled by ${escapeHTML(ticket.assignedTo.firstName)}` : ''}</p>
             <select class="ticket-status-select" data-id="${ticket._id}">
                 ${['open', 'in_progress', 'resolved', 'closed'].map(status => `<option value="${status}" ${status === ticket.status ? 'selected' : ''}>${status.replace('_', ' ')}</option>`).join('')}
@@ -262,6 +265,16 @@ async function loadAdminTickets() {
 
     container.querySelectorAll('.ticket-status-select').forEach(select => {
         select.addEventListener('change', () => updateTicketStatus(select.dataset.id, select.value));
+    });
+    container.querySelectorAll('.ticket-photo-preview').forEach(preview => {
+        preview.addEventListener('click', () => {
+            const photo = preview.querySelector('img');
+            const enlargedPhoto = document.getElementById('adminTicketPhoto');
+            if (!photo || !enlargedPhoto) return;
+            enlargedPhoto.src = photo.src;
+            enlargedPhoto.alt = photo.alt;
+            openModal('adminTicketPhotoModal');
+        });
     });
 }
 

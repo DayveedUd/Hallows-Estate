@@ -167,6 +167,7 @@ exports.recordPayment = async (req, res) => {
 exports.getTickets = async (req, res) => {
     try {
         const tickets = await MaintenanceTicket.find()
+            .select('+photo')
             .populate('resident', 'firstName middleName lastName unit block username')
             .populate('assignedTo', 'firstName lastName')
             .sort({ createdAt: -1 });
