@@ -119,8 +119,32 @@ async function loadAdminData() {
         loadAdminStats(),
         loadAdminResidents(),
         loadAdminTickets(),
-        loadAdminAnnouncements()
+        loadAdminAnnouncements(),
+        loadAdminFacilityBookings()
     ]);
+}
+
+async function loadAdminFacilityBookings() {
+    const response = await adminFetch('/api/admin/facility-bookings');
+    if (!response.ok || !response.data.success) return reportLoadError('facility bookings', response);
+    const tbody = document.getElementById('facilitiesTableBody');
+    if (!tbody) return;
+
+    const timeLabels = {
+        morning: 'Morning Session (6:00 AM – 12:00 PM)',
+        afternoon: 'Afternoon Session (2:00 PM – 5:00 PM)',
+        evening: 'Evening Session (4:00 PM – 9:00 PM)',
+        full_day: 'Full Day Pass (8:00 AM – 11:00 PM)'
+    };
+    tbody.innerHTML = response.data.data.length ? response.data.data.map(booking => `
+        <tr style="border-bottom: 1px solid var(--border-light);">
+            <td style="padding: 1rem;">${escapeHTML(booking.facility)}</td>
+            <td style="padding: 1rem;">${escapeHTML([booking.resident?.firstName, booking.resident?.lastName].filter(Boolean).join(' ') || 'Unknown resident')}${ticketLocation(booking.resident)}</td>
+            <td style="padding: 1rem;">${escapeHTML(booking.date)}<br>${escapeHTML(timeLabels[booking.timeSlot] || booking.timeSlot)}</td>
+            <td style="padding: 1rem;">—</td>
+            <td style="padding: 1rem; text-align: right;">—</td>
+        </tr>
+    `).join('') : '<tr><td colspan="5" style="padding: 1rem;">No facility bookings yet.</td></tr>';
 }
 
 async function loadAdminStats() {

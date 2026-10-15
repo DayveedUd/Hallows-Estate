@@ -8,5 +8,6 @@ const Admin = require('./Admin');
 const Resident = require('./Resident');
 const Announcement = require('./Announcement');
 const MaintenanceTicket = require('./MaintenanceTicket');
+const FacilityBooking = require('./FacilityBooking');
 
-module.exports = { Admin, Resident, Announcement, MaintenanceTicket };
+module.exports = { Admin, Resident, Announcement, MaintenanceTicket, FacilityBooking };

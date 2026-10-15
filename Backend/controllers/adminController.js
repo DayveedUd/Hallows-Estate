@@ -7,6 +7,7 @@ const User = require('../models/Admin');
 const Resident = require('../models/Resident');
 const Announcement = require('../models/Announcement');
 const MaintenanceTicket = require('../models/MaintenanceTicket');
+const FacilityBooking = require('../models/FacilityBooking');
 const { getJwtSecret } = require('../config/env');
 
 const generateToken = (id) => jwt.sign({ id, type: 'admin' }, getJwtSecret(), {
@@ -196,6 +197,18 @@ exports.updateTicketStatus = async (req, res) => {
         res.json({ success: true, data: ticket });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error updating ticket' });
+    }
+};
+
+exports.getFacilityBookings = async (req, res) => {
+    try {
+        const bookings = await FacilityBooking.find()
+            .populate('resident', 'firstName lastName unit block')
+            .sort({ date: 1, createdAt: -1 });
+        res.json({ success: true, data: bookings });
+    } catch (error) {
+        console.error('Get facility bookings error:', error);
+        res.status(500).json({ success: false, message: 'Unable to load facility bookings' });
     }
 };
 

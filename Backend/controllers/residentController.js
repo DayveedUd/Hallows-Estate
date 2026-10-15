@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const Resident = require('../models/Resident');
 const Announcement = require('../models/Announcement');
 const MaintenanceTicket = require('../models/MaintenanceTicket');
+const FacilityBooking = require('../models/FacilityBooking');
 const { getJwtSecret } = require('../config/env');
 const { validateResidentRegistration, validateResidentLogin } = require('../utils/validation');
 
@@ -431,6 +432,62 @@ exports.getTickets = async (req, res) => {
         res.json({ success: true, data: tickets });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error loading tickets' });
+    }
+};
+
+const validFacilities = [
+    'Community Hall',
+    'Football Field',
+    'Volleyball Court',
+    'Tennis Court',
+    'Basketball Court'
+];
+const validFacilityTimeSlots = ['morning', 'afternoon', 'evening', 'full_day'];
+
+exports.createFacilityBooking = async (req, res) => {
+    try {
+        const { facility, date, timeSlot } = req.body || {};
+        const parsedDate = typeof date === 'string' ? new Date(`${date}T00:00:00.000Z`) : null;
+        if (!validFacilities.includes(facility) || !validFacilityTimeSlots.includes(timeSlot) ||
+            typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+            !parsedDate || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date) {
+            return res.status(400).json({ success: false, message: 'Please select a valid facility, date, and time slot' });
+        }
+
+        const existingBooking = await FacilityBooking.exists({ facility, date, timeSlot });
+        if (existingBooking) {
+            return res.status(409).json({
+                success: false,
+                message: 'That facility has already been booked for this date and time slot.'
+            });
+        }
+
+        const booking = await FacilityBooking.create({
+            resident: req.residentId,
+            facility,
+            date,
+            timeSlot
+        });
+        res.status(201).json({ success: true, data: booking });
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: 'That facility has already been booked for this date and time slot.'
+            });
+        }
+        console.error('Create facility booking error:', error);
+        res.status(500).json({ success: false, message: 'Unable to book this facility' });
+    }
+};
+
+exports.getFacilityBookings = async (req, res) => {
+    try {
+        const bookings = await FacilityBooking.find({ resident: req.residentId }).sort({ date: 1, createdAt: -1 });
+        res.json({ success: true, data: bookings });
+    } catch (error) {
+        console.error('Get resident facility bookings error:', error);
+        res.status(500).json({ success: false, message: 'Unable to load facility bookings' });
     }
 };
 

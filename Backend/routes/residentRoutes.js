@@ -27,4 +27,8 @@ router.get('/tickets', verifyResidentToken, residentController.getTickets);
 
 router.post('/tickets', verifyResidentToken, residentController.createTicket);
 
+router.get('/facility-bookings', verifyResidentToken, residentController.getFacilityBookings);
+
+router.post('/facility-bookings', verifyResidentToken, residentController.createFacilityBooking);
+
 module.exports = router;

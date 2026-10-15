@@ -52,6 +52,7 @@ async function loadResidentData() {
     await fetchAnnouncements(token);
     await fetchResidentProfile(token);
     await fetchResidentTickets(token);
+    await fetchResidentBookings(token);
 
     // Everything an admin can change (approval, dues, ticket status, announcements)
     // must be re-read, otherwise it only appears after a manual reload.
@@ -59,7 +60,8 @@ async function loadResidentData() {
         fetchPaymentDetails(token),
         fetchAnnouncements(token),
         fetchResidentProfile(token),
-        fetchResidentTickets(token)
+        fetchResidentTickets(token),
+        fetchResidentBookings(token)
     ]);
     window.residentRefreshTimer = setInterval(refreshAll, 20000);
     document.addEventListener('visibilitychange', () => {
@@ -228,6 +230,45 @@ async function fetchResidentTickets(token) {
     } catch (err) {
         console.warn('Tickets unavailable:', err.message);
     }
+}
+
+async function fetchResidentBookings(token) {
+    try {
+        const response = await fetch('/api/resident/facility-bookings', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (handleAuthFailure(response) || !response.ok) return;
+        const result = await response.json();
+        if (result.success) renderResidentBookings(result.data || []);
+    } catch (error) {
+        console.warn('Facility bookings unavailable:', error.message);
+    }
+}
+
+function renderResidentBookings(bookings) {
+    const container = document.getElementById('facilitiesList');
+    if (!container) return;
+    if (!bookings.length) {
+        container.innerHTML = '<div class="card"><p>No active bookings yet.</p></div>';
+        return;
+    }
+
+    const timeSelect = document.getElementById('bookingTime');
+    container.innerHTML = bookings.map(booking => {
+        const timeLabel = Array.from(timeSelect?.options || [])
+            .find(option => option.value === booking.timeSlot)?.textContent || booking.timeSlot;
+        return `
+            <div class="card" style="margin-bottom: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                    <div>
+                        <h4 style="margin: 0 0 0.25rem 0; color: var(--navy); font-size: 1rem;">${escapeHTML(booking.facility)}</h4>
+                        <div style="font-size: 0.85rem; color: var(--dark-grey);">📅 ${escapeHTML(booking.date)} &nbsp;|&nbsp; ⏰ ${escapeHTML(timeLabel)}</div>
+                    </div>
+                    <span style="background: #dcfce7; color: #15803d; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Confirmed</span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function renderResidentTickets(tickets) {
@@ -438,7 +479,7 @@ function updateMaintenancePhotoName() {
 }
 
 // Confirm Facility Booking Action
-function confirmBooking() {
+async function confirmBooking() {
     const facilitySelectEl = document.getElementById('bookingFacilitySelect');
     const dateEl = document.getElementById('bookingDate');
     const timeEl = document.getElementById('bookingTime');
@@ -452,24 +493,24 @@ function confirmBooking() {
         return;
     }
 
-    // Dynamic UI Feedback: Update Facilities List
-    const facilitiesList = document.getElementById('facilitiesList');
-    if (facilitiesList) {
-        const bookingCardHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; text-align: left; background: var(--light-grey); padding: 1rem; border-radius: 6px; border-left: 4px solid var(--navy); margin-bottom: 0.75rem;">
-                <div>
-                    <h4 style="margin: 0 0 0.25rem 0; color: var(--navy); font-size: 1rem;">${facilityName}</h4>
-                    <div style="font-size: 0.85rem; color: var(--dark-grey);">📅 ${date} &nbsp;|&nbsp; ⏰ ${time}</div>
-                </div>
-                <span style="background: #dcfce7; color: #15803d; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Confirmed</span>
-            </div>
-        `;
-
-        if (facilitiesList.innerHTML.includes('no active bookings')) {
-            facilitiesList.innerHTML = bookingCardHTML;
-        } else {
-            facilitiesList.insertAdjacentHTML('afterbegin', bookingCardHTML);
+    try {
+        const response = await fetch('/api/resident/facility-bookings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('residentToken')}`
+            },
+            body: JSON.stringify({ facility: facilityName, date, timeSlot: time })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            showToast(result.message || 'Unable to book this facility.');
+            return;
         }
+        await fetchResidentBookings(localStorage.getItem('residentToken'));
+    } catch (error) {
+        showToast(error.message || 'Unable to book this facility.');
+        return;
     }
 
     // Reset form inputs

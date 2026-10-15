@@ -331,12 +331,11 @@
             <div class="form-group">
                 <label class="form-label">Time Slot</label>
                 <select id="bookingTime">
-                    <option value="">Select Time</option>
-                    <option>6:00 AM - 7:00 AM</option>
-                    <option>7:00 AM - 8:00 AM</option>
-                    <option>2:00 PM - 3:00 PM</option>
-                    <option>3:00 PM - 4:00 PM</option>
-                    <option>6:00 PM - 7:00 PM</option>
+                    <option value="" disabled selected>Select a time slot</option>
+                    <option value="morning">Morning Session (6:00 AM – 12:00 PM)</option>
+                    <option value="afternoon">Afternoon Session (2:00 PM – 5:00 PM)</option>
+                    <option value="evening">Evening Session (4:00 PM – 9:00 PM)</option>
+                    <option value="full_day">Full Day Pass (8:00 AM – 11:00 PM)</option>
                 </select>
             </div>
 

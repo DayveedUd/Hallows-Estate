@@ -29,6 +29,8 @@ router.get('/tickets', verifyAdminToken, checkPermission('viewComplaints'), admi
 
 router.patch('/tickets/:ticketId/status', verifyAdminToken, checkPermission('resolveComplaints'), adminController.updateTicketStatus);
 
+router.get('/facility-bookings', verifyAdminToken, checkPermission('viewResidents'), adminController.getFacilityBookings);
+
 router.get('/announcements', verifyAdminToken, checkPermission('postAnnouncements'), adminController.getAnnouncements);
 
 router.post('/announcements', verifyAdminToken, checkPermission('postAnnouncements'), adminController.createAnnouncement);
